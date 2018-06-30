@@ -18,4 +18,4 @@ Change into newly created directory in the directory companies/_youcompany_/_you
     bash request-new-cert.sh
 
 ## Blog
-Find further instructions on [https://blog.rothirsch.tech](https://blog.rothirsch.tech)
+Find further instructions on [https://blog.rothirsch.tech](https://blog.rothirsch.tech/server_farm/configurations/strongswan/)
