@@ -1,0 +1,1 @@
+central/scripts/new-ca.sh

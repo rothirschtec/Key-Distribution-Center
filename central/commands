@@ -1,0 +1,46 @@
+CA.pl in directory
+------------------
+/usr/lib/ssl/misc/CA.pl
+
+openssl.cnf in dir
+------------------
+/usr/lib/ssl/openssl.cnf
+
+export opensslcnf
+-----------------
+export OPENSSL\_CONF=./openssl.cnf
+
+Create a new CA
+---------------
+./CA.pl -newca
+
+Create new req
+!! don't forget to set the CN name of the Gateway to WAN ip-address 
+--------------
+./CA.pl -newreq
+
+Sign req
+--------
+./CA.pl -sign
+
+Create an p12 certkey
+---------------------
+openssl pkcs12 -export -in certs.keys/certs/ -inkey certs.keys/keys/ -certfile demoCA/cacert.pem -out certs.keys/p12/
+
+Show certificate subject
+------------------------
+openssl x509 -in certs.keys/certs/ -noout -subject
+
+Create crl
+----------
+openssl ca -gencrl -out demoCA/crl/crl.pem 
+openssl ca -gencrl -crldays 30 -out demoCA/crl/crl.pem
+
+Revoke crl
+----------
+openssl ca -revoke certs/
+
+Show crl
+--------
+openssl crl -in demoCA/crl/crl.pem -noout -text
+
