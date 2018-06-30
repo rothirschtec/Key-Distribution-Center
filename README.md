@@ -1,5 +1,10 @@
 # Certificate Authority
 
+This project helps you with creating a complete certificate authority for your company. Therefore it uses openssl.
+
+## Blog
+Find further instructions on [https://blog.rothirsch.tech](https://blog.rothirsch.tech/server_farm/configurations/strongswan/)
+
 ## Installation
 
 1. Simply download the git repository
@@ -17,5 +22,3 @@ Change into newly created directory in the directory companies/_youcompany_/_you
 
     bash request-new-cert.sh
 
-## Blog
-Find further instructions on [https://blog.rothirsch.tech](https://blog.rothirsch.tech/server_farm/configurations/strongswan/)
