@@ -455,7 +455,7 @@ do
                 fi
 
                 if [[ $decision == "r" ]]; then
-                    bash ${hdir}revoke-cert.sh "${newcert[$ac]}"
+                    bash ${mdir}central/scripts/revoke-cert.sh "${newcert[$ac]}"
                     break
                 elif [ "$decision" == "e" ]; then
                     exit 1
@@ -509,7 +509,7 @@ do
                 cert_subject="/C=$cnf_country/ST=$cnf_state/L=$cnf_location/O=$cnf_company/OU=$cnf_ou/CN=$cnf_cn" 
 
                 if [[ $cmd == "recreate" ]]; then 
-                    bash ${hdir}revoke-cert.sh "${newcert[$ac]}"
+                    bash ${mdir}central/scripts/revoke-cert.sh "${newcert[$ac]}"
                 fi
 
                 if grep -rl "${newcert[$ac]%%.*};" ${hdir}configs/usr.list &> /dev/null; then
@@ -523,7 +523,7 @@ do
                 # Get subject and revoke existing cert
                 cont=$(sed '/^--'"${newcert[ac]}"'--$/,/^--'"${newcert[ac]}"'--$/{//!b};d'  ${hdir}configs/certs.pass)
                 cert_subject=$(echo $cont | grep -o -P '(?<=subj: ).*(?= cert:)')
-                bash ${hdir}revoke-cert.sh "${newcert[$ac]}"
+                bash ${mdir}central/scripts/revoke-cert.sh "${newcert[$ac]}"
             fi
 
             echo

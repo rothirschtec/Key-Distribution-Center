@@ -271,9 +271,7 @@ if [ $perform -eq 0 ] ;then
     mv ${tdir}certs.pass ${hdir}companies/$company/$ca/configs/certs.pass
 
     cd ${hdir}
-    ln -rsf central/scripts/request-new-cert.sh  companies/$company/$ca/request-new-cert.sh
-    ln -rsf central/scripts/check-cert.sh        companies/$company/$ca/check-cert.sh
-    ln -rsf central/scripts/revoke-cert.sh       companies/$company/$ca/revoke-cert.sh
+    ln -rsf central/scripts/manage-certs.sh  companies/$company/$ca/manageCerts
     echo ""
     echo "Your certificate authority has been created!"
     echo "All files are in:"
