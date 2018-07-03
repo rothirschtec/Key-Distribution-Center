@@ -7,14 +7,14 @@ mdir=$PWD/
 cd $hdir
 
 maillog=false
-if [ -f ${mdir}def_locl.sh ]; then
-    source ${mdir}def_locl.sh
+if [ -f ${mdir}config ]; then
+    source ${mdir}config
     if [[ ${ocdata##*/} != "" ]]; then
         ocdata=${ocdata}/
     fi
 else
     echo "Please copy ${mdir}central/templates/defaults.sh"
-    echo "to: ${mdir}def_locl.sh"
+    echo "to: ${mdir}config"
     echo "and configure it."
     exit 1
 fi
@@ -184,7 +184,7 @@ if [ -z $2 ]; then
         if [[ $ipsecgw != "" ]]; then
             sendto=$ipsecgw
         else
-            echo "Please configure the ipsec gateway in defaults.sh or def_locl.sh"
+            echo "Please configure the ipsec gateway in defaults.sh or config"
             exit 1
         fi
         trans=t
@@ -791,7 +791,7 @@ do
 
         else
             echo ""
-            echo "The directory you set in your defaults.sh or def_locl.sh doesn't exists"
+            echo "The directory you set in your defaults.sh or config doesn't exists"
             exit 0
         fi
 

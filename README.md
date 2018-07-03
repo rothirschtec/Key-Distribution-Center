@@ -9,9 +9,9 @@ Find further instructions on [https://blog.rothirsch.tech](https://blog.rothirsc
 
 1. Simply download the git repository
 
-2. Copy the file central/templates/defaults.sh to def_locl.sh. The def_locl will not be overwritten by a git pull and is ignored in the .gitignore file
+2. Copy the file central/templates/defaults.sh to _config_. The _config_ will not be overwritten by a git pull and is ignored in the .gitignore file
 
-    cp central/templates/defaults.sh def_locl.sh
+    cp central/templates/defaults.sh config
 
 3. Create a new certificate authority
 
