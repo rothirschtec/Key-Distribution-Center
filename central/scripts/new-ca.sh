@@ -267,9 +267,10 @@ if [ $perform -eq 0 ] ;then
     echo $ca > ${hdir}companies/$company/$ca/configs/cacert.name
     mv ${tdir}certs.pass ${hdir}companies/$company/$ca/configs/certs.pass
 
-    ln -rsf ${hdir}central/scripts/request-new-cert.sh  ${hdir}companies/$company/$ca/request-new-cert.sh
-    ln -rsf ${hdir}central/scripts/check-cert.sh        ${hdir}companies/$company/$ca/check-cert.sh
-    ln -rsf ${hdir}central/scripts/revoke-cert.sh       ${hdir}companies/$company/$ca/revoke-cert.sh
+    cd ${hdir}
+    ln -rsf central/scripts/request-new-cert.sh  companies/$company/$ca/request-new-cert.sh
+    ln -rsf central/scripts/check-cert.sh        companies/$company/$ca/check-cert.sh
+    ln -rsf central/scripts/revoke-cert.sh       companies/$company/$ca/revoke-cert.sh
     echo ""
     echo "Your certificate authority has been created!"
     echo "All files are in:"
