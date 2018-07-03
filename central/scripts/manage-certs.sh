@@ -162,8 +162,8 @@ if [ -z $1 ]; then
     echo 'as 2nd attribute all certs will be send to that one'
     echo 'Short command: ./manageCerts "renew"'
     echo '---------------'
-    read -p "Did you know that you can also execute this script as an oneliner? (e)xit: " ol
-    if [[ $ol == "e" ]]; then
+    read -p "Did you know that you can also execute this script as an oneliner? (e)xpert: " ol
+    if [[ $ol != "e" ]]; then
         exit 1
     fi
     if [[ $cmd == "" ]]; then
