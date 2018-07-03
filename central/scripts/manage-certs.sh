@@ -7,8 +7,7 @@ mdir=$PWD/
 cd $hdir
 
 maillog=false
-if [ -f ${mdir}config ]; then
-    source ${mdir}config
+if [ -f ${mdir}config ]; then source ${mdir}config
     if [[ ${ocdata##*/} != "" ]]; then
         ocdata=${ocdata}/
     fi
@@ -27,6 +26,11 @@ mkdir -p ${hdir}.tmp/
 rm -rf ${hdir}.tmp/*
 runId=$(uuidgen)
 tdir="${hdir}.tmp/"
+
+if [ ! -f ${hdir}.revokeCert ]; then
+    cd $hdir
+    ln -rsf ../../../central/scripts/revoke-cert.sh .revokeCert
+fi
 
 # # # # #
 
@@ -230,6 +234,9 @@ certs=${hdir}certs.keys/certs
 keys=${hdir}certs.keys/private
 newconf=${tdir}newcert/new.conf
 
+firstOne=0
+    # This variable shows if a certificate has never existed before
+
 # # # # # # # # # # 
 
 
@@ -263,7 +270,8 @@ if ! cat ${hdir}configs/certs.pass |grep "main: 1" &>/dev/null; then
 
     else
         echo "But will be created in this round..."
-        gwcert="${newcert[ac]}.${mainca}.cert.pem"
+        company=$(ls ../../)
+        gwcert="${newcert[ac]}.${company}.${mainca}.cert.pem"
     fi
 else
     gwcert=$(awk -F ":" '{print $3}' <<< $(cat ${hdir}configs/certs.pass | grep "main: 1"))
@@ -455,7 +463,7 @@ do
                 fi
 
                 if [[ $decision == "r" ]]; then
-                    bash ${mdir}central/scripts/revoke-cert.sh "${newcert[$ac]}"
+                    bash ${hdir}.revokeCert "${newcert[$ac]}"
                     break
                 elif [ "$decision" == "e" ]; then
                     exit 1
@@ -509,7 +517,10 @@ do
                 cert_subject="/C=$cnf_country/ST=$cnf_state/L=$cnf_location/O=$cnf_company/OU=$cnf_ou/CN=$cnf_cn" 
 
                 if [[ $cmd == "recreate" ]]; then 
-                    bash ${mdir}central/scripts/revoke-cert.sh "${newcert[$ac]}"
+                    if grep "${newcert[$ac]}" ${hdir}configs/usr.list &>/dev/null; then
+                        firstOne=1
+                        bash ${hdir}.revokeCert "${newcert[$ac]}"
+                    fi
                 fi
 
                 if grep -rl "${newcert[$ac]%%.*};" ${hdir}configs/usr.list &> /dev/null; then
@@ -523,7 +534,7 @@ do
                 # Get subject and revoke existing cert
                 cont=$(sed '/^--'"${newcert[ac]}"'--$/,/^--'"${newcert[ac]}"'--$/{//!b};d'  ${hdir}configs/certs.pass)
                 cert_subject=$(echo $cont | grep -o -P '(?<=subj: ).*(?= cert:)')
-                bash ${mdir}central/scripts/revoke-cert.sh "${newcert[$ac]}"
+                bash ${hdir}.revokeCert "${newcert[$ac]}"
             fi
 
             echo
@@ -675,45 +686,48 @@ do
         rm -f newreq.pem
 
 
-        log "p12 convertion..." 1 "${mdir}"
-        windows=0
+        if [[ $gwcert != ${newcert[ac]}.${mainca}.cert.pem ]]; then
 
-        if [[ $trans == "a" ]]; then
-            read -p "Shall the cert been converted into a p12 cert for windows users (1/0): " windows
-        fi
+            log "p12 convertion..." 1 "${mdir}"
+            windows=0
 
-        if [[ $windows == "1" ]] || [[ $trans == "p" ]] || [[ $cmd == "recreate" ]] || [[ $cmd == "renew" ]]; then
+            if [[ $trans == "a" ]]; then
+                read -p "Shall the cert been converted into a p12 cert for windows users (1/0): " windows
+            fi
 
-            if [[ "$newpass" == "No certificate" ]]; then
+            if [[ $windows == "1" ]] || [[ $trans == "p" ]] || [[ $cmd == "recreate" ]] || [[ $cmd == "renew" ]]; then
+
+                if [[ "$newpass" == "No certificate" ]]; then
+                    i=0
+                    while read file
+                    do
+                        if [[ "$i" == "$certnum" ]]; then
+                            newpass=${file##*pass: }
+                        fi
+                        ((i++))
+                    done < <(sed -n "/^pass:/p" ${hdir}configs/certs.pass)
+                fi
+
+                if [[ $cmd == "test" ]]; then
+                    win_pass="test"
+                else
+                    win_pass=`create_password`
+                fi
+
                 i=0
+
+                openssl pkcs12 -export -passout pass:"$win_pass" -passin pass:"$newpass"  -in ${hdir}certs.keys/certs/${newcert[$ac]}.$mainca.cert.pem -inkey ${hdir}certs.keys/private/${newcert[$ac]}.$mainca.key.pem -certfile demoCA/cacert.pem -out certs.keys/p12/${newcert[$ac]}.$mainca.p12
+
                 while read file
                 do
                     if [[ "$i" == "$certnum" ]]; then
-                        newpass=${file##*pass: }
+                        wp=${file##*p12PW: }
+                        sed -i "s/p12PW: $wp/p12PW: $win_pass/g" ${hdir}configs/certs.pass
                     fi
                     ((i++))
-                done < <(sed -n "/^pass:/p" ${hdir}configs/certs.pass)
+                done < <(sed -n "/^p12PW:/p" ${hdir}configs/certs.pass)
+
             fi
-
-            if [[ $cmd == "test" ]]; then
-                win_pass="test"
-            else
-                win_pass=`create_password`
-            fi
-
-            i=0
-
-            openssl pkcs12 -export -passout pass:"$win_pass" -passin pass:"$newpass"  -in ${hdir}certs.keys/certs/${newcert[$ac]}.$mainca.cert.pem -inkey ${hdir}certs.keys/private/${newcert[$ac]}.$mainca.key.pem -certfile demoCA/cacert.pem -out certs.keys/p12/${newcert[$ac]}.$mainca.p12
-
-            while read file
-            do
-                if [[ "$i" == "$certnum" ]]; then
-                    wp=${file##*p12PW: }
-                    sed -i "s/p12PW: $wp/p12PW: $win_pass/g" ${hdir}configs/certs.pass
-                fi
-                ((i++))
-            done < <(sed -n "/^p12PW:/p" ${hdir}configs/certs.pass)
-
         fi
     fi
     # # # # #
@@ -746,8 +760,8 @@ do
         
         # # #
         # Transfer cert to the server
-        echo "Transfering: ${newcert[$ac]}.$mainca.cert.pem"
-        rsync -a $certs/${newcert[$ac]}.$mainca.cert.pem root@$ca_ip:/etc/ipsec.d/certs/
+        echo "Transfering: ${newcert[$ac]}.${mainca}.cert.pem"
+        rsync -a $certs/${newcert[$ac]}.${mainca}.cert.pem root@$ca_ip:/etc/ipsec.d/certs/
 
         # # #
         # Share with owncloud
@@ -806,7 +820,9 @@ do
         rsync -a ${hdir}certs.keys/certs/${gwcert}                          ${tdir}newcert/certs/
         rsync -a ${hdir}certs.keys/certs/${newcert[$ac]}.$mainca.cert.pem   ${tdir}newcert/certs/
         rsync -a ${hdir}certs.keys/private/${newcert[$ac]}.$mainca.key.pem  ${tdir}newcert/private/
-        rsync -a ${hdir}certs.keys/p12/${newcert[$ac]}.$mainca.p12          ${tdir}newcert/p12/
+        if [[ $gwcert != ${newcert[ac]}.${mainca}.cert.pem ]]; then
+            rsync -a ${hdir}certs.keys/p12/${newcert[$ac]}.$mainca.p12          ${tdir}newcert/p12/
+        fi
         rsync -a ${hdir}demoCA/cacert.pem                                   ${tdir}newcert/cacerts/$mainca.ca.pem
 
         # Create linux installer

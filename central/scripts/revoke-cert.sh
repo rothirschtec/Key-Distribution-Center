@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# Revoke a certificat
+# Revoke a certificate
 
 cd $(dirname $0)
 hdir=$PWD/
@@ -13,10 +13,10 @@ cd $hdir
 maillog=false
 function log {
     if [ $maillog == true ]; then
-        echo $1 >> /opt/.certificate-authorities/scripts/exchange.log
+        echo $1 >> ${hdir}exchange.log
         if [ -z $2 ]; then
             if [[ $2 -eq 1 ]]; then
-                echo ""  >> /opt/.certificate-authorities/scripts/exchange.log
+                echo ""  >> ${hdir}exchange.log
             fi
         fi
     else
@@ -159,8 +159,8 @@ if [ $execute -eq 1 ] && [ $cert_revoked == true ]; then
 # UPDATING CRL
     log "" 0
     log "Updating crl..." 0
-    openssl ca -passin pass:"$ca_pass" -keyfile demoCA/private/cakey.pem -cert demoCA/cacert.pem \
-    -gencrl -out demoCA/crl/crl.pem
+    openssl ca -passin pass:"$ca_pass" -keyfile ${hdir}demoCA/private/cakey.pem -cert ${hdir}demoCA/cacert.pem \
+    -gencrl -out ${hdir}demoCA/crl/crl.pem
     if [ $? -eq 0 ]; then
         crl_updated=true
     else
