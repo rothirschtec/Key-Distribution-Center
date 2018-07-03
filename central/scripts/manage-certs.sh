@@ -36,7 +36,7 @@ tdir="${hdir}.tmp/"
 
         # # #
         # Checks dependencies and tries to install them
-        dep=("openssl" "perl" "pwgen" "uuid-runtime")
+        dep=("openssl" "perl" "pwgen" "uuid-runtime" "zip" "mailutils")
 
         ni=0
         for x in "${dep[@]}"; do
