@@ -1,3 +1,5 @@
 companies/*
 config
 .tmp
+*.swp
+tmp
