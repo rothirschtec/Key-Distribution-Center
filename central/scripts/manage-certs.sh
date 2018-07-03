@@ -142,25 +142,25 @@ if [ -z $1 ]; then
     echo 'If certname is unknown write "unknown" instead of "certname"'
     echo 'If you want to change the keys password on the servers'
     echo 'ipsec.secrets add "main" as fourth argument'
-    echo 'Short command: ./request-new-cert.sh "trans" "servername" "certname"'
+    echo 'Short command: ./manageCerts "trans" "servername" "certname"'
     echo ''
     echo 'Transfer All Modi (transall)'
     echo 'Transfers all existing certificate to the main server'
     echo 'If certname is unknown write "unknown" instead of "certname"'
-    echo 'Short command: ./request-new-cert.sh "transall"'
+    echo 'Short command: ./manageCerts "transall"'
     echo ''
     echo 'Recreate Modi (recreate)'
     echo 'Revokes and then creates or recreates a certificate'
     echo 'You have to tell the CA if this is the certificate of the gateway.'
     echo 'If so write "main" as 4th parameter. If not leave it be.'
-    echo 'Short command: ./request-new-cert.sh "recreate" "certs@domain.at" "certname" "main"'
+    echo 'Short command: ./manageCerts "recreate" "certs@domain.at" "certname" "main"'
     echo ''
     echo 'Renew All (renew)'
     echo 'Revokes and then distributes all existing certificates to the'
     echo 'distribution folder. Additional it sends the zip passwords to'
     echo 'the clients from a clientlist or if you set an e-Mail Adress'
     echo 'as 2nd attribute all certs will be send to that one'
-    echo 'Short command: ./request-new-cert.sh "renew"'
+    echo 'Short command: ./manageCerts "renew"'
     echo '---------------'
     read -p "Did you know that you can also execute this script as an oneliner? (e)xit: " ol
     if [[ $ol == "e" ]]; then
@@ -252,12 +252,12 @@ echo
 if ! cat ${hdir}configs/certs.pass |grep "main: 1" &>/dev/null; then
     echo "Couldn't find a main certificate!"
     if [[ $cmd != "recreate" ]]; then
-        echo 'Please create it first with: request-new-cert.sh "recreate" "certs@domain.at" "certname" "main"'
+        echo 'Please create it first with: manageCerts "recreate" "certs@domain.at" "certname" "main"'
         echo 'The parameter "main" at the end of the line inidicates the choosen certificate as main'
         exit 1
         
     elif [[ $cmd == "recreate" ]] && [[ $snd_to_cmp == "empty" ]]; then
-        echo 'Please create it first with: request-new-cert.sh "recreate" "certs@domain.at" "certname" "main"'
+        echo 'Please create it first with: manageCerts "recreate" "certs@domain.at" "certname" "main"'
         echo 'The parameter "main" at the end of the line inidicates the choosen certificate as main'
         exit 1
 
@@ -726,7 +726,7 @@ do
             sed -i 's/main: 1/main: 0/g' ${hdir}configs/certs.pass
             echo "There were more then one main certificates configure."
             echo "The script reseted all main certs"
-            echo 'Please recreate the main cert first with: bash request-new-cert.sh "recreate" "certs@domain.at" "certname" "main"'
+            echo 'Please recreate the main cert first with: ./manageCerts "recreate" "certs@domain.at" "certname" "main"'
             echo 'The parameter "main" at the end of the line inidicates the choosen certificate as main'
             exit 1
         fi

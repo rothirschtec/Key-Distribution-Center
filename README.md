@@ -15,10 +15,10 @@ Find further instructions on [https://blog.rothirsch.tech](https://blog.rothirsc
 
 3. Create a new certificate authority
 
-    bash new-ca.sh
+    ./createCA
 
 4. Create, revoke, transfer, renew,.... 
 Change into newly created directory in the directory companies/_youcompany_/_yourca_/
 
-    bash request-new-cert.sh
+    ./manageCerts
 
