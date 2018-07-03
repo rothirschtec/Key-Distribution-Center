@@ -87,6 +87,8 @@ echo ""
 i=0
 if [ $perform -eq 0 ] ;then
 
+    mkdir -p ${hdir}companies/
+
     while read file
     do
         ((i++))
