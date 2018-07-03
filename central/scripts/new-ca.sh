@@ -33,23 +33,24 @@ function create_password {
         # Checks dependencies and tries to install them
         dep=("openssl" "perl" "pwgen" "uuid-runtime")
 
+        ni=0
         for x in "${dep[@]}"; do
             dpkg -s $x &> /dev/null
             if [ $? -eq 1 ]; then
                 echo "$x: is not installed"
                 #apt-get -y install $x
-                ni=$(($ni + $?))
+                ni=$(($ni + 1))
             fi
         done
         return $ni
     }
-    if ! check_dependencies; then
-        echo "Problems with dependencies detected"
+    check_dependencies
+    if [ $? -gt 0 ]; then
+        echo "The script found missing dependencies. Install them first."
         exit 1
     fi
 #
 # # #
-
 
 count=0
 function change_openssl_config {
