@@ -37,7 +37,7 @@ function create_password {
             dpkg -s $x &> /dev/null
             if [ $? -eq 1 ]; then
                 echo "$x: is not installed"
-                apt-get -y install $x
+                #apt-get -y install $x
                 ni=$(($ni + $?))
             fi
         done
