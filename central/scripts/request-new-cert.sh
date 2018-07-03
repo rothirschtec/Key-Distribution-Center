@@ -30,33 +30,33 @@ tdir="${hdir}.tmp/"
 
 # # # # #
 
-# # # # # # # # # # 
-# Functions
-#
-## Check dependencies
-check_dependencies() {
-
-    # # #
-    # Checks dependencies and tries to install them
-    dep=("mailutils" "uuid-runtime" "zip")
-
-    ni=0
-    for x in "${dep[@]}"; do
-        dpkg -s $x &> /dev/null
-        if [ $? -eq 1 ]; then
-            echo "$x: is not installed"
-            apt-get -y install $x
-            ni=$(($ni + $?))
-        fi
-    done
-    return $ni
-
-}
-if ! check_dependencies; then
-    echo "Problems with dependencies detected"
-    exit 1
-fi
 # # #
+# Check dependencies
+    check_dependencies() {
+
+        # # #
+        # Checks dependencies and tries to install them
+        dep=("openssl" "perl" "pwgen" "uuid-runtime")
+
+        ni=0
+        for x in "${dep[@]}"; do
+            dpkg -s $x &> /dev/null
+            if [ $? -eq 1 ]; then
+                echo "$x: is not installed"
+                #apt-get -y install $x
+                ni=$(($ni + 1))
+            fi
+        done
+        return $ni
+    }
+    check_dependencies
+    if [ $? -gt 0 ]; then
+        echo "The script found missing dependencies. Install them first."
+        exit 1
+    fi
+#
+# # #
+
 
 ## LOG
 function log {
