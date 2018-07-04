@@ -514,7 +514,12 @@ do
                 read -e -p "Company: " -i "$(readconf '0.organizationName_default')" cnf_company
                 read -e -p "Organisation Unit: " -i "" cnf_ou
                 read -e -p "Common Name CN: " -i "" cnf_cn
-                read -e -p "E-Mail cert owner: " -i "rene@rothirsch.tech" cert_owner
+                if [[ $sendto != "unknown" ]]; then
+                    echo "E-Mail cert owner: $sendto"
+                    cert_owner=$sendto
+                else
+                    read -e -p "E-Mail cert owner: " -i "rene@rothirsch.tech" cert_owner
+                fi
                 cert_subject="/C=$cnf_country/ST=$cnf_state/L=$cnf_location/O=$cnf_company/OU=$cnf_ou/CN=$cnf_cn" 
 
                 if [[ $cmd == "recreate" ]]; then 
