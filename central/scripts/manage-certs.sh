@@ -363,8 +363,8 @@ if [[ $cmd == "transall" ]]; then
 
         echo "Transfering certs to the gateway..."
         if [[ ${newcert[$ac]} != "unknown" ]];then
-            rsync -a ${hdir}demoCA/cacert.pem root@$sendto:/etc/ipsec.d/cacerts/$mainca.cacert.pem
-            rsync -a ${hdir}demoCA/crl/crl.pem root@$sendto:/etc/ipsec.d/crls/$mainca.crl.pem
+            rsync -a ${hdir}demoCA/cacert.pem root@$sendto:/etc/ipsec.d/cacerts/$mainca.cacert.${domain}.pem
+            rsync -a ${hdir}demoCA/crl/crl.pem root@$sendto:/etc/ipsec.d/crls/$mainca.crl.${domain}.pem
         fi
     else
         echo "Not able to connect to destination server"
@@ -667,16 +667,16 @@ do
                     fi
                 fi
                 if [[ $isgw == "y" ]] ; then
-                    rsync -a ${hdir}demoCA/cacert.pem root@$ca_ip:/etc/ipsec.d/cacerts/$mainca.cacert.pem
-                    rsync -a ${hdir}demoCA/crl/crl.pem root@$ca_ip:/etc/ipsec.d/crls/$mainca.crl.pem
+                    rsync -a ${hdir}demoCA/cacert.pem root@$ca_ip:/etc/ipsec.d/cacerts/$mainca.cacert.${domain}.pem
+                    rsync -a ${hdir}demoCA/crl/crl.pem root@$ca_ip:/etc/ipsec.d/crls/$mainca.crl.${domain}.pem
                 fi
 
                 if [[ $issecser == "y" ]] ; then
                     # 2. Server
                     rsync -a $certs/${newcert[$ac]}.$mainca.cert.pem root@$server:/etc/ipsec.d/certs/
                     if [[ $isgateway == "y" ]] ; then
-                        rsync -a ${hdir}demoCA/cacert.pem root@$server:/etc/ipsec.d/cacerts/$mainca.cacert.pem
-                        rsync -a ${hdir}demoCA/crl/crl.pem root@$server:/etc/ipsec.d/crls/$mainca.crl.pem
+                        rsync -a ${hdir}demoCA/cacert.pem root@$server:/etc/ipsec.d/cacerts/$mainca.cacert.${domain}.pem
+                        rsync -a ${hdir}demoCA/crl/crl.pem root@$server:/etc/ipsec.d/crls/$mainca.crl.${domain}.pem
                     fi
                 fi
             fi
@@ -898,6 +898,8 @@ do
             # # #
             # Send info mail to user
             echo "Sending mail to user..."
+            echo mail -s "New password for Client ${newcert[$ac]} ($(date +%d.%m.%y))" -a "From: $mainemail" $usermail
+            cat ${tdir}pwmail
             cat ${tdir}pwmail | mail -s "New password for Client ${newcert[$ac]} ($(date +%d.%m.%y))" -a "From: $mainemail" $usermail
             rm -f ${tdir}pwmail
         fi
@@ -910,4 +912,4 @@ do
 done
 
 log "" 0 "${mdir}"
-log "Request successfull" 1 "${mdir}"
+log "Request successful" 1 "${mdir}"
