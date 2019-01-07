@@ -658,8 +658,6 @@ do
                         log "Upload ipsec.secrets..." 0 "${mdir}"
                         rsync -a ${tdir}${runId}.ipsec.secrets root@${ca_ip}:/etc/ipsec.secrets
                         log "Remove local ipsec.secrets..." 1 "${mdir}"
-                        ssh root@${ca_ip} ipsec restart
-                        log "Restart ipsec on root@${ca_ip}..." 1 "${mdir}"
                         rm -f ${tdir}${runId}.ipsec.secrets
 
                     else
@@ -911,6 +909,12 @@ do
     ac=$(($ac + $endloop))
 
 done
+
+
+if [[ $cmd == "trans" ]] || [[ $cmd == "transall" ]] ; then
+   ssh root@${ca_ip} ipsec restart
+   log "Restart ipsec on root@${ca_ip}..." 1 "${mdir}"
+fi
 
 log "" 0 "${mdir}"
 log "Request successful" 1 "${mdir}"
