@@ -44,5 +44,5 @@ else
 fi
 
 
-ssh $oc_host rm -rf $ocdata
+ssh $oc_host rm -rf ${ocdata}*
 ssh $oc_host "cd $ocroot; sudo -u www-data php occ files:scan --all"
