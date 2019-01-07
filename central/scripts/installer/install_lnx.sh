@@ -40,8 +40,18 @@ subj=$(cat ${home}client_info.md |grep "subj")
 subj=${subj#subj: *}
 
 if [ $(cat /etc/ipsec.conf |grep "$subj" | wc -l) -eq 0 ];then
-    echo "It looks like that there is no configuration for your subject in /etc/ipsec.conf"
-    echo "Please call your administrator for help"
+   echo "It looks like that there is no configuration for your subject in /etc/ipsec.conf"
+   echo "Would you like to overwrite the whole /etc/ipsec.conf?"
+   read -p "If you are not connected with an other strongswan Gateway you can use y (yN): " overwrite
+   if [[ $overwrite == "[yY]" ]]; then
+      read -p "Complete /etc/ipsec.conf will be overwritten by merge. Ok? (yN): " overwrite
+      if [[ $overwrite == "[yY]" ]]; then
+         mv ${home}ipsec.conf /etc/ipsec.conf
+         ipsec restart
+      fi
+   fi
+       
+   
 else 
     ipsec restart
 fi
