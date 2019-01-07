@@ -847,10 +847,11 @@ do
             right=${srv##subjectAltName=IP:}
         fi
 
-        sed -i 's/!#Right0x/'"$right"'/g'                                   ${tdir}newcert/ipsec.conf
-        sed -i 's/!#LeftCert0x/'"${newcert[$ac]}.$mainca.cert.pem"'/g'      ${tdir}newcert/ipsec.conf
-        sed -i 's|!#LeftID0x|'"${subject#^subject=\ *}"'|g'                   ${tdir}newcert/ipsec.conf
-        sed -i 's|!#RightID0x|'"${subjgw}"'|g'                              ${tdir}newcert/ipsec.conf
+        sed -i 's/!#Right0x/'"$right"'/g'                              	${tdir}newcert/ipsec.conf
+        sed -i 's/!#LeftCert0x/'"${newcert[$ac]}.$mainca.cert.pem"'/g' 	${tdir}newcert/ipsec.conf
+        sed -i 's|!#LeftID0x|'"${cert_subject}"'|g'                   	${tdir}newcert/ipsec.conf
+
+        sed -i 's|!#RightID0x|'"${subjgw}"'|g'                         	${tdir}newcert/ipsec.conf
         # # #
 
         sed -i "s/!!Password!!/$win_pass/g"                                 ${tdir}newcert/windows_install_cert.bat
