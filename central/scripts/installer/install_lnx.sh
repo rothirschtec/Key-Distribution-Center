@@ -45,7 +45,7 @@ if [ $(cat /etc/ipsec.conf |grep "$subj" | wc -l) -eq 0 ];then
    if [ $(cat /etc/ipsec.conf |grep "conn rt.conn" | wc -l) -eq 0 ];then
       echo "Adding configuration to /etc/ipsec.conf"
       echo "" >> /etc/ipsec.conf
-      echo "Rothirsch Tech. connection" >> /etc/ipsec.conf
+      echo "# Rothirsch Tech. connection" >> /etc/ipsec.conf
       sed -n '/conn rt.conn/,$p' ${home}ipsec.conf >> /etc/ipsec.conf
       ipsec restart
       ipsec up rt.conn
