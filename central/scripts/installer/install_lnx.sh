@@ -52,9 +52,9 @@ if [ $(cat /etc/ipsec.conf |grep "$subj" | wc -l) -eq 0 ];then
    else
       echo "But there is an existing old connection, would you like to overwrite the whole /etc/ipsec.conf?"
       read -p "If you are not connected with an other strongswan Gateway you can use y (yN): " overwrite
-      if [[ $overwrite == "[yY]" ]]; then
+      if [[ $overwrite == [yY] ]]; then
          read -p "Complete /etc/ipsec.conf will be overwritten by merge. Ok? (yN): " overwrite
-         if [[ $overwrite == "[yY]" ]]; then
+         if [[ $overwrite == [yY] ]]; then
             mv ${home}ipsec.conf /etc/ipsec.conf
             ipsec restart
             ipsec up rt.conn
