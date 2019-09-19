@@ -227,7 +227,6 @@ else
 fi
 certnum=0
 
-
 export OPENSSL\_CONF=${hdir}openssl.cnf
 
 
@@ -512,8 +511,8 @@ do
                 read -e -p "State: " -i "$(readconf 'stateOrProvinceName_default')" cnf_state
                 read -e -p "Location: " -i "$(readconf 'localityName_default')" cnf_location
                 read -e -p "Company: " -i "$(readconf '0.organizationName_default')" cnf_company
-                read -e -p "Organisation Unit: " -i "" cnf_ou
-                read -e -p "Common Name CN: " -i "" cnf_cn
+                read -e -p "Organisation Unit: Server/Client - (Name): " -i "" cnf_ou
+                read -e -p "Common Name CN (user.domain.local): " -i "" cnf_cn
                 if [[ $sendto != "unknown" ]]; then
                     echo "E-Mail cert owner: $sendto"
                     cert_owner=$sendto
@@ -562,6 +561,11 @@ do
             fi
             export password="$newpass"
             # # # # # # # # # # 
+
+            # # #
+            # Change subjectAltName to Common name of client certificate
+            # https://wiki.strongswan.org/projects/strongswan/wiki/Win7CertReq
+            sed -i "s/^subjectAltName=DNS:.*$/subjectAltName=DNS:$cnf_cn/g" ${hdir}openssl.cnf
 
             openssl req \
                     -new \

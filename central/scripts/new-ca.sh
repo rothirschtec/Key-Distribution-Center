@@ -1,29 +1,9 @@
 #!/bin/bash
 
-# # # # # # # # # 
-# Variables
-declare -a cho_company=""
-declare -a ssl_value=""
-declare -i newca=1
-declare -i perform=0
-num_company=0
-# # # # # # # # # 
-
-# # # # # # # # # # 
-# Functions
-function create_password {
-	if [[ $1 == "test" ]]; then
-		pass="test"
-		echo $pass
-	else
-   pass=""
-   	for x in {1..2}
-   	do
-      	pass+=`pwgen -1nc`
-   	done
-   	echo $pass
-	fi
-}
+# Author: René Zingerle
+# Thanks to: 
+# - https://www.danballard.com/references/strongswan/www.zeitgeist.se/2013/11/22/strongswan-howto-create-your-own-vpn/index.html
+# - https://wiki.strongswan.org/
 
 # # #
 # Check dependencies
@@ -31,14 +11,12 @@ function create_password {
 
         # # #
         # Checks dependencies and tries to install them
-        dep=("openssl" "perl" "pwgen" "uuid-runtime")
-
-        ni=0
+        dep=("ipsec")
+ni=0
         for x in "${dep[@]}"; do
-            dpkg -s $x &> /dev/null
+            which $x &> /dev/null
             if [ $? -eq 1 ]; then
                 echo "$x: is not installed"
-                #apt-get -y install $x
                 ni=$(($ni + 1))
             fi
         done
@@ -47,234 +25,200 @@ function create_password {
     check_dependencies
     if [ $? -gt 0 ]; then
         echo "The script found missing dependencies. Install them first."
+        echo "http://blog.rothirsch.tech/server_farm/configurations/strongswan/#!install"
         exit 1
     fi
 #
 # # #
 
-count=0
-function change_openssl_config {
-    read -p "$1: " value
-    sed -i "s/$2/$value/g" ${tdir}openssl.cnf
-    ssl_value[(($count))]=$value
-    (( count++ ))
-}
 
-
-# # # # # # # # #
+# # #
 # Create directories and get templates
 cd $(dirname $0)
 hdir="$PWD/"
 
-runID=$(uuidgen)
-tdir=${hdir}.tmp/${runID}/
-rm -rf ${hdir}.tmp
-mkdir -p $tdir
-
-cp ${hdir}central/templates/openssl.cnf ${tdir}openssl.cnf
-cp ${hdir}central/openssl/CA.pl ${tdir}CA.pl
-# # # # # # # # # 
 
 
-# # # # # # # # #
-# Start message
-echo ""
-# # # # # # # # # 
-
-
-# # # # # # # # # 
+# # #
 # Get Company
 i=0
-if [ $perform -eq 0 ] ;then
 
-    mkdir -p ${hdir}companies/
+# create default company directory if not exist
+mkdir -p ${hdir}CAs/
 
-    while read file
-    do
-        ((i++))
-        echo "[$i] $file"
-        cho_company[(($i-1))]=$file
-    done < <(ls "${hdir}companies/")
+# # #
+# Variables and arrays for the next steps
+declare -a cho_company=""
+declare -a ssl_value=""
+declare -i newca=1
+num_company=0
 
-    if find ${hdir}companies/ -mindepth 1 | read; then
-        read -p "Do you wanna use one of the exisiting companies? [(Number)|no(n)|exit(e)]: " decision
+# # #
+# loop through CAs subdirectory
+declare -a cho_company
+while read file
+do
+    ((i++))
+    echo "[$i] $file"
+    cho_company[(($i-1))]=$file
+done < <(ls "${hdir}CAs/")
+
+if find ${hdir}CAs/ -mindepth 1 | read; then
+    read -p "Do you wanna use one of the exisiting CAs? [(Number)|no(n)|exit(e)]: " decision
+
+else
+    decision="n"
+
+fi
+
+nValid=1
+while [  $nValid -eq 1 ]; do
+
+    re='^[0-9]+$'
+    if [[ $decision =~ $re ]]; then
+        company="${cho_company[$num_company-1]}"
+        nValid=0
+
+    elif [ $decision == "n" ] || [ $decision == "no" ] ; then
+        read -p "Choose a company domain name (like \"domain.local\"): " company
+        mkdir -p "${hdir}CAs/$company"
+        nValid=0
+
+    elif [ $decision == "e" ] || [ $decision == "exit" ] ; then
+        exit 0
+
     else
-        decision="n"
+        read -p "Wrong decision please choose \"y\" or \"n\": " decision
+        nValid=1
+
     fi
 
-    nValid=1
-    while [  $nValid -eq 1 ]; do
+done
+echo "Using company name: $company ..."
+echo ""
 
-        re='^[0-9]+$'
-        if [[ $decision =~ $re ]]; then
-            company="${cho_company[$num_company-1]}"
-            nValid=0
+# # #
+# loop through company subdirectories
+while read file
+do
+    ((i++))
+    echo "[$i] $file"
+    cho_company[(($i-1))]=$file
+done < <(ls "${hdir}CAs/$company/")
 
-        elif [ $decision == "n" ] || [ $decision == "no" ] ; then
-            read -p "Choose a company domain name (like \"domain.local\"): " company
-            mkdir -p "${hdir}companies/$company"
-            nValid=0
+if find ${hdir}CAs/$company/ -mindepth 1 | read; then
+    read -p "Do you wanna use one of the exisiting CAs? [(Number)|no(n)|exit(e)]: " decision
 
-        elif [ $decision == "e" ] || [ $decision == "exit" ] ; then
+else
+    decision="n"
 
-            exit 0
-        else
-
-            read -p "Wrong decision please choose \"y\" or \"n\": " decision
-            nValid=1
-        fi
-
-    done
-    echo "Using company name: $company ..."
-    echo ""
 fi
-# # # # # # # # # 
 
+nValid=1
+while [  $nValid -eq 1 ]; do
 
-# # # # # # # # # 
-# Choose CA
-i=0
-if [ $perform -eq 0 ]; then
+    if [[ $decision =~ $re ]]; then
+        ca="${cho_company[$num_company-1]}"
+        nValid=0
+        newca=0
 
-    while read file
-    do
-        ((i++))
-        echo "[$i] $file"
-        cho_company[(($i-1))]=$file
-    done < <(ls "${hdir}companies/$company/")
+    elif [ $decision == "n" ] || [ $decision == "no" ] ; then
+        read -p "Choose a shortname for the CA like ca2k: " ca
+        mkdir "${hdir}CAs/$company/$ca"
+        nValid=0
+        newca=1
 
-    if find ${hdir}companies/$company/ -mindepth 1 | read; then
-        read -p "Do you wanna use one of the exisiting companies? [(Number)|no(n)|exit(e)]: " decision
     else
-        decision="n"
+        read -p "Wrong decision please choose \"y\" or \"n\": " decision
+        nValid=1
+
     fi
-
-    nValid=1
-    while [  $nValid -eq 1 ]; do
-
-        if [[ $decision =~ $re ]]; then
-            ca="${cho_company[$num_company-1]}"
-            nValid=0
-            newca=0
-
-        elif [ $decision == "n" ] || [ $decision == "no" ] ; then
-            read -p "Choose a shortname for the CA like ca2k: " ca
-            mkdir "${hdir}companies/$company/$ca"
-            nValid=0
-            newca=1
-
-        else
-            read -p "Wrong decision please choose \"y\" or \"n\": " decision
-            nValid=1
-
-        fi
-    done
-    echo "Using CA name: $ca ..."
-    echo ""
-fi
-# # # # # # # # # 
+done
+echo "Using CA name: $ca ..."
+echo ""
 
 
-# # # # # # # # # 
-# Change CAs defaults 
-if [ $perform -eq 0 ] ;then
+# # #
+# Ask user about necessary parameters
+echo "You will now create a subject for your CA. These are information"
+echo "the strongswan gateway will use to identify the senders and receivers"
+echo "Additionally this script saves the parameters you choose as default"
+echo "values for later use."
+read -e -p "CA Country (2 Letters): " -i "AT" ca_country
+#read -p "CA State: " ca_state
+#read -p "CA City: " ca_city
+read -p "CA Company Name: " ca_company
+#read -p "CA Unit [Company - Server/Client (specific)]: " ca_unit
+echo ""
+#echo "Your server name like ca.domain.local"
+#read -p "CA CommonName: " ca_cn
+echo ""
+echo "Liftime for CA before you have to reissue it"
+read -e -p "CA Lifetime (3650 - aka 10 years): " -i "3650" ca_lifetime
 
-    echo "You will now create a subject for your CA. These are information"
-    echo "the strongswan gateway will use to identify the senders and receivers"
-    echo "Additionally this script saves the parameters you choose as default"
-    echo "values for later use."
-    change_openssl_config "CA Country (2 Letters): " "0xCountryNamex0"
-    change_openssl_config "CA State: " "0xStateNamex0"
-    change_openssl_config "CA City: " "0xHometownx0"
-    change_openssl_config "CA Company Name: " "0xCompanyx0"
-    change_openssl_config "CA Unit (Company: Server/Client (specific): " "x0Unit0x"
-    echo ""
-    echo "Your server name like ca.domain.local"
-    change_openssl_config "CA CommonName: " "x0commonNamex0"
-    change_openssl_config "CA nsComment (optional): " "0x!nsComment!x0"
-    echo ""
-    echo "What will the generale liftime of a certificate, created with this CA, be?"
-    echo "You have to reissue any certificate after this periode"
-    echo "The certificate of the CA itself has a lifetime of 3 year (1095 days)"
-    change_openssl_config "CA Certificate Lifetime (30): " "!0AcertificateLifetime"
-    export subject="/C=${ssl_value[0]}/ST=${ssl_value[1]}/L=${ssl_value[2]}/O=${ssl_value[3]}/OU=${ssl_value[4]}/CN=${ssl_value[5]}"
-    echo "Using Subject: $subject"
-fi
-# # # # # # # # # 
+echo ""
+echo "A 4096bit key length can result in MTU issues on some ISPs"
+echo "For higher compatibility, e.g. for mobile devices, use a smaller length like"
+echo "2048bit but you have to reissue them more often. It's not recommended to use"
+echo "a key lenght less than 1024bit. For a site to site connection you"
+echo "should probably use the 4096bit lenght."
+read -e -p "Key length (1024|2048|4096): " -i "4096" ca_keysize
 
 
-# # # # # # # # # 
-# Choose keylength and gateway name
-if [ $perform -eq 0 ]; then
-    if [ $newca -eq 1 ]; then
-        rsync -a ${hdir}central/templates/openssl.cnf ${hdir}companies/$company/$ca/
-        rsync -a ${hdir}central/templates/configs ${hdir}companies/$company/$ca/
-        # Copy templates to new folder
-    else
-        rm -rf ${hdir}companies/$company/$ca/demoCA
-    fi
-    echo ""
-    echo "A 4096bit key length can result in MTU issues on some ISPs"
-    echo "For higher compatibility, e.g. for mobile devices, use a smaller length like"
-    echo "2048bit but you have to reissue them more often. It's not recommended to use"
-    echo "a key lenght less than 1024bit. For a site to site connection you"
-    echo "should probably use the 4096bit lenght."
-    change_openssl_config "Key length (1024|2048|4096)" "x0keyStrength0x"
-    # Key strength
 
-    echo ""
-    echo "In some situations VPN clients and servers reading if the Domain name "
-    echo "of the ipsec gateway exists and resolves to the IP Adress of the gateway."
-    echo "So if you use this parameter wrong your certificates will not authenticate."
-    echo "Please add 'DNS:' at the beginning if you use a DNS Name."
-    echo "Please add 'IP:' before the IP if you use a static IP."
-    change_openssl_config "Server (IP:... or DNS:...)" "x0serverIp0x"
-    # Server IP
-fi
-# # # # # # # # # 
+# # #
+# Create CA
+echo ""
+echo "Create CA..."
 
-# # # # # # # # # 
-# Get CA
-if [ $perform -eq 0 ] ;then
+ca_dir="${hdir}CAs/$company/$ca/"
 
-    newpass=`create_password $1`
-    echo ""
-    echo "New password: $newpass"
-    export password=$newpass
+# Keyfile
+echo "Creating CA private key..."
+ca_private="${ca_dir}STORE/private/ca.${company}.pem"
+mkdir -p ${ca_dir}STORE/private/
+ipsec pki --gen --type rsa --size $ca_keysize \
+    --outform pem \
+    > $ca_private
+chmod 600 $ca_private
 
-    echo ""
-    echo "Create CA..."
-    export OPENSSL\_CONF=${tdir}openssl.cnf
-    perl ${tdir}CA.pl -newca
-    if [ $? -gt 0 ]; then
-        echo ""
-        echo "Something went wrong. The CA has not been created!"
-        exit 1
-    fi
 
-    echo ""
-    echo "Move all files and information into destination directory..."
-    if [ $perform -eq 0 ] ;then
-        for x in ${tdir}openssl.cnf ${hdir}demoCA ${tdir}CA.pl
-        do
-            mv $x ${hdir}companies/$company/$ca/
-        done
-    fi
+# Cert
+echo "Creating CA certificate..."
+ca_cert="${ca_dir}STORE/cacerts/ca.${company}.pem"
+mkdir -p ${ca_dir}STORE/cacerts/
+ipsec pki --self --ca --lifetime $ca_lifetime \
+    --in $ca_private --type rsa \
+    --dn 'C='"$ca_country"', O='"$ca_company"', CN=strongSwan Root CA - '"$company"' - '"$ca"'' \
+    --outform pem \
+    > $ca_cert
+# # #
 
-    cp ${hdir}central/templates/configs/certs.pass  ${tdir}certs.pass
-    sed -i "s/x0caPass0x/$newpass/g"                ${tdir}certs.pass
-    sed -i "s/x0caCert0x/$ca/g"                     ${tdir}certs.pass
-    sed -i "s/x0domain0x/$company/g"                ${tdir}certs.pass
+echo ""; echo "Show CA certificate..."
+ipsec pki --print --in $ca_cert
 
-    mkdir -p ${hdir}companies/$company/$ca/configs/
-    echo $ca > ${hdir}companies/$company/$ca/configs/cacert.name
-    mv ${tdir}certs.pass ${hdir}companies/$company/$ca/configs/certs.pass
 
-    cd ${hdir}
-    ln -rsf central/scripts/manage-certs.sh  companies/$company/$ca/manageCerts
-    echo ""
-    echo "Your certificate authority has been created!"
-    echo "All files are in:"
-    echo "${hdir}companies/$company/$ca/"
-fi
-# # # # # # # # # 
+echo ""; echo "Your certificate authority has been created!"
+
+# # #
+# Link management scripts
+echo "Linking files..."
+ln -rsf ${hdir}central/scripts/cert-create.sh ${ca_dir}cert-create
+ln -rsf ${hdir}central/scripts/cert-create.sh ${ca_dir}cert-create
+ln -rsf ${hdir}central/scripts/cert-transfer.sh ${ca_dir}cert-transfer
+ln -rsf ${hdir}central/scripts/cert-remove.sh ${ca_dir}cert-remove
+ln -rsf ${hdir}central/scripts/cert-revoke.sh ${ca_dir}cert-revoke
+ln -rsf ${hdir}central/scripts/cert-show.sh ${ca_dir}cert-show
+
+# # #
+# Write configuration file
+mkdir -p ${ca_dir}CONFIGS
+echo "CA Name: $ca" > ${ca_dir}CONFIGS/ca-infos
+echo "CA Company: $ca_company" >> ${ca_dir}CONFIGS/ca-infos
+echo "CA Certificate: ${ca_cert##*STORE/}" >> ${ca_dir}CONFIGS/ca-infos
+echo "CA Private Key: ${ca_private##*STORE/}" >> ${ca_dir}CONFIGS/ca-infos
+
+
+
+echo "All files are in:"
+echo "${ca_dir}"

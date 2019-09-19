@@ -198,7 +198,8 @@ authorityKeyIdentifier=keyid,issuer
 # An alternative to produce certificates that aren't
 # deprecated according to PKIX.
 subjectAltName=x0serverIp0x
-extendedKeyUsage=serverAuth
+extendedKeyUsage=serverAuth, 1.3.6.1.5.5.8.2.2
+# More Info: https://wiki.strongswan.org/projects/strongswan/wiki/Win7CertReq#Client-certificates
 
 # Copy subject details
 # issuerAltName=issuer:copy
