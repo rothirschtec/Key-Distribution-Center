@@ -1,6 +1,6 @@
 # Certificate Authority
 
-This project helps you to manage your certifcates created by the _ipsec pki_. The idea is, that you install a separated server that serves as a Certificate Authority. This server will be your highly confitential location. All certificates created are then send to an IPSEC Gateway. On this gateway is also a owncloud instance installed for _Out of Band_ key distribution.
+This project helps you to manage your x509 certificates created by the _ipsec pki_. The idea is, that you install a separated server that serves as a Certificate Authority. This server will be your highly confidential location. All certificates created are then send to an IPSEC Gateway. On this gateway is also a owncloud instance installed for _Out of Band_ key distribution.
 
 ## Dependencies
 
@@ -17,18 +17,32 @@ And you should allow the CA to login to the IPSEC gateway via SSH without passwo
 
 ## Installation
 
-1. Simply download the git repository
+1. Simply clone the git repository
 
-2. Copy the file central/templates/defaults.sh to _config_. The _config_ will not be overwritten by a git pull and is ignored in the .gitignore file
+2. Start the initialisation
+   
+    ./createCA 
 
-    cp central/templates/defaults.sh config
 
-3. Create a new certificate authority
+3. Change into newly created directory  ***CAs/yourDomain/yourCA/*** and start
 
-    ./createCA
+### Create
 
-4. Create, revoke, transfer, renew,.... 
-Change into newly created directory in the directory companies/_youcompany_/_yourca_/
+    # Create certificate
+    ./cert-create
+    # or with config
+    ./cert-create CONFIGS/your.config.configs
+    
+### Revoke
 
-    ./manageCerts
+    ./cert-revoke STORE/certs/your.cert.pem
 
+### Transfer
+
+    ./cert-transfer STORE/certs/your.cert.pem
+
+### Show info
+
+    ./cert-info STORE/certs/your.cert.pem
+
+The scripts are all selfexplaing an create configuration files inside CONFIGS

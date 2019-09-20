@@ -132,7 +132,7 @@ if [[ $hosttype =~ [uU] ]]; then
     echo -e "\
     Hy $user_name,\n\
     \n\
-    Your certificate has been revoced because of security concerns \n\
-    The certificate was revoced by ${ca_name}." | mail -s "[$(date +%d.%m.%y)] Certificate revoced by ${ca_name}" -a "From: ca@$ca_domain" $user_mail
+    Your certificate has been revoked because of security concerns \n\
+    The certificate was revoked by ${ca_name}." | mail -s "[$(date +%d.%m.%y)] Certificate revoked by ${ca_name}" -a "From: ca@$ca_domain" $user_mail
     
 fi
