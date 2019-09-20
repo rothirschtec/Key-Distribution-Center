@@ -10,7 +10,7 @@ check_dependencies() {
 
     # # #
     # Checks dependencies and tries to install them
-    dep=("ipsec")
+    dep=("ipsec" "pwgen")
 
     ni=0
     for x in "${dep[@]}"; do
@@ -33,6 +33,10 @@ fi
 
 
 # # #
+# Use host config if exists
+host_config=$1
+
+# # #
 # Create directories and get templates
 cd $(dirname $0)
 hdir="$PWD/"
@@ -45,42 +49,81 @@ function readconfig {
 }
 ca=$(readconfig "CA Name")
 company=$(readconfig "CA Company")
+ca_domain=$(readconfig "CA Domain")
 ca_cert=$(readconfig "CA Certificate")
 ca_key=$(readconfig "CA Private Key")
+ca_name=$(readconfig "CA Full Name")
 
 # # #
 # Ask user about necessary parameters
-echo "You will now create a subject for your CA. These are information"
-echo "the strongswan gateway will use to identify the senders and receivers"
-echo "Additionally this script saves the parameters you choose as default"
-echo "values for later use."
-read -p "CA Country (2 Letters): " ca_country
+function askorrestore() {
+
+    if [ ! -z $host_config ] && [ -f $host_config ]; then
+        answer=$(cat $host_config | grep "$1" | awk -F": " '{print $NF}')
+        echo $answer
+
+    fi
+
+    if [[ $answer == "" ]]; then
+        read -e -p "${3} - ${1}: " -i "$2" answer
+        if [ ! -z $host_config ] && [ -f $host_config ]; then
+            echo "$1: $answer" >> $host_config
+        fi
+        echo $answer
+    fi
+}
+
+
+# # #
+# Gateway or host?
+hosttype=$(askorrestore 'Hosttype' '' '(U)ser/(v)pngateway')
+
+# Get user or host name
+if [[ $hosttype =~ [vV] ]]; then
+    cert_cn=$(askorrestore 'Cert CN' "" "The hostname will be added to the CAs Domain .${ca_domain}:")
+    cert_cn=$(sed "s/.$ca_domain//g" <<< $cert_cn)
+    cert_cn="${cert_cn}.${ca_domain}" 
+    hosttype=v
+else
+    cert_cn=$(askorrestore "Cert CN" "" "The username will be added to the CAs Domain .${ca_domain}")
+    cert_cn=$(sed "s/@$ca_domain//g" <<< $cert_cn)
+    cert_cn="${cert_cn}@${ca_domain}"
+    hosttype=u
+fi
+
+
+# # #
+# Initialize cert config
+if [ -z $host_config ]; then
+    echo ""; echo "Saving certificate infos..."
+    host_config="${hdir}CONFIGS/${cert_cn}-${ca}.configs"
+    echo "" > $host_config 
+    echo "Configuration for $cert_cn" >> $host_config
+    echo "Hosttype: $hosttype" >> $host_config
+    echo "Cert CN: $cert_cn" >> $host_config
+    echo ""
+fi
+
+
+if [[ $hosttype =~ [uU] ]]; then
+    user_mail=$(askorrestore "User Mail" "" "User e-mail address. The p12 password will be send to this address")
+    user_name=$(askorrestore "User Name" "" "User name. To personally address the User")
+fi
+
+cert_country=$(askorrestore "Cert Country" "AT" "Country short name (2 letters)")
+echo "CA Company Name: $company"
+cert_lifetime=$(askorrestore "Cert Lifetime" "181" "Lifetime of user certificate")
+cert_keysize=$(askorrestore "Cert Keysize" "2048" "Keysize options (1024|2048|4096)" )
 #read -p "CA State: " ca_state
 #read -p "CA City: " ca_city
-echo "CA Company Name: $company"
 #read -p "CA Unit [Company - Server/Client (specific)]: " ca_unit
-echo ""
-echo "Your server name like host.domain.local"
-read -p "CA CommonName: " cert_cn
-echo ""
-echo "Liftime for certificate before you have to reissue it"
-read -e -p "Cert lifetime (181 - aka 0.5 years): " -i "181" cert_lifetime
-
-echo ""
-echo "A 4096bit key length can result in MTU issues on some ISPs"
-echo "For higher compatibility, e.g. for mobile devices, use a smaller length like"
-echo "2048bit but you have to reissue them more often. It's not recommended to use"
-echo "a key lenght less than 1024bit. For a site to site connection you"
-echo "should probably use the 4096bit lenght."
-read -e -p "Key length (1024|2048|4096): " -i "2048" cert_keysize
-
 
 
 # # #
 # Create certificate
 echo ""; echo "Create certificate..."
-
 ca_dir="${hdir}STORE/"
+
 
 # Keyfile
 echo "Creating CA private key..."
@@ -91,21 +134,68 @@ ipsec pki --gen --type rsa --size $cert_keysize \
     > $cert_private
 chmod 600 $cert_private
 
-# Cert
+
+# Certificate
 echo "Creating CA certificate..."
 cert_file="${ca_dir}certs/${cert_cn}-${ca}.pem"
 mkdir -p ${ca_dir}certs/
-ipsec pki --pub --in ${cert_private} --type rsa | \
-    ipsec pki --issue --lifetime $cert_lifetime \
-    --cacert ${ca_dir}$ca_cert \
-    --cakey ${ca_dir}$ca_key \
-    --dn 'C='"$ca_country"', O='"$company"', CN='"$cert_cn"'' \
-    --san $cert_cn \
-    --flag serverAuth --flag ikeIntermediate \
-    --outform pem > $cert_file
-# # #
 
-echo ""; echo "Show CA certificate..."
+if [[ $hosttype == "v" ]]; then
+    # # #
+    # VPN Gateway
+    ipsec pki --pub --in ${cert_private} --type rsa | \
+        ipsec pki --issue --lifetime $cert_lifetime \
+        --cacert ${ca_dir}$ca_cert \
+        --cakey ${ca_dir}$ca_key \
+        --dn 'C='$cert_country', O='"$company"', CN='"$cert_cn"'' \
+        --san $cert_cn \
+        --flag serverAuth --flag ikeIntermediate \
+        --outform pem > $cert_file
+else
+    # # #
+    # User
+    ipsec pki --pub --in ${cert_private} --type rsa | \
+        ipsec pki --issue --lifetime $cert_lifetime \
+        --cacert ${ca_dir}$ca_cert \
+        --cakey ${ca_dir}$ca_key \
+        --dn 'C='"$cert_country"', O='"$company"', CN='"$cert_cn"'' \
+        --san $cert_cn \
+        --outform pem > $cert_file
+    # # #
+
+    # p12 certificat with password
+    mkdir -p ${ca_dir}p12/
+    cert_pw=$(pwgen -sy -c1 16)
+    echo $cert_pw > "${ca_dir}p12/${cert_cn}-${ca}.pass"
+    echo "Creating p12 certificates..."
+    cert_p12="${ca_dir}p12/${cert_cn}-${ca}.p12"
+
+    openssl pkcs12 -export -inkey $cert_private \
+        -in $cert_file -name "VPN Certificate - $company, $cert_cn" \
+        -certfile ${ca_dir}$ca_cert \
+        -caname "${ca_name}" \
+        -password "pass:${cert_pw}" \
+        -out $cert_p12
+fi
+
+
+# # #
+# Check certificate
+echo ""; echo "Show certificate..."
 ipsec pki --print --in $cert_file
 
 echo ""; echo "Your certificate has been created!"
+
+
+# # #
+# Send mail
+if [[ $hosttype == "u" ]]; then
+    echo ""; echo "Sending mail to user..."
+    echo -e "\
+    Hy $user_name,\n\
+    \n\
+    a new certficate is available for you. \n\
+    The certificate was provided by ${ca_name}. \n\
+    \n\
+    Please use following password: ${cert_pw}" | mail -s "[$(date +%d.%m.%y)] Certificate released by ${ca_name}" -a "From: ca@$ca_domain" $user_mail
+fi

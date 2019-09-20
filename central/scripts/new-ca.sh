@@ -38,7 +38,6 @@ cd $(dirname $0)
 hdir="$PWD/"
 
 
-
 # # #
 # Get Company
 i=0
@@ -76,12 +75,12 @@ while [  $nValid -eq 1 ]; do
 
     re='^[0-9]+$'
     if [[ $decision =~ $re ]]; then
-        company="${cho_company[$num_company-1]}"
+        ca_domain="${cho_company[$num_company-1]}"
         nValid=0
 
     elif [ $decision == "n" ] || [ $decision == "no" ] ; then
-        read -p "Choose a company domain name (like \"domain.local\"): " company
-        mkdir -p "${hdir}CAs/$company"
+        read -p "Choose a company domain name (like \"domain.local\"): " ca_domain
+        mkdir -p "${hdir}CAs/$ca_domain"
         nValid=0
 
     elif [ $decision == "e" ] || [ $decision == "exit" ] ; then
@@ -94,7 +93,7 @@ while [  $nValid -eq 1 ]; do
     fi
 
 done
-echo "Using company name: $company ..."
+echo "Using company domain name: $ca_domain ..."
 echo ""
 
 # # #
@@ -104,9 +103,9 @@ do
     ((i++))
     echo "[$i] $file"
     cho_company[(($i-1))]=$file
-done < <(ls "${hdir}CAs/$company/")
+done < <(ls "${hdir}CAs/$ca_domain/")
 
-if find ${hdir}CAs/$company/ -mindepth 1 | read; then
+if find ${hdir}CAs/$ca_domain/ -mindepth 1 | read; then
     read -p "Do you wanna use one of the exisiting CAs? [(Number)|no(n)|exit(e)]: " decision
 
 else
@@ -124,7 +123,7 @@ while [  $nValid -eq 1 ]; do
 
     elif [ $decision == "n" ] || [ $decision == "no" ] ; then
         read -p "Choose a shortname for the CA like ca2k: " ca
-        mkdir "${hdir}CAs/$company/$ca"
+        mkdir "${hdir}CAs/$ca_domain/$ca"
         nValid=0
         newca=1
 
@@ -171,11 +170,11 @@ read -e -p "Key length (1024|2048|4096): " -i "4096" ca_keysize
 echo ""
 echo "Create CA..."
 
-ca_dir="${hdir}CAs/$company/$ca/"
+ca_dir="${hdir}CAs/$ca_domain/$ca/"
 
 # Keyfile
 echo "Creating CA private key..."
-ca_private="${ca_dir}STORE/private/ca.${company}.pem"
+ca_private="${ca_dir}STORE/private/ca.${ca_domain}_${ca}.pem"
 mkdir -p ${ca_dir}STORE/private/
 ipsec pki --gen --type rsa --size $ca_keysize \
     --outform pem \
@@ -185,11 +184,12 @@ chmod 600 $ca_private
 
 # Cert
 echo "Creating CA certificate..."
-ca_cert="${ca_dir}STORE/cacerts/ca.${company}.pem"
+ca_cert="${ca_dir}STORE/cacerts/ca.${ca_domain}_${ca}.pem"
+ca_name="strongSwan Root CA | $ca"
 mkdir -p ${ca_dir}STORE/cacerts/
 ipsec pki --self --ca --lifetime $ca_lifetime \
     --in $ca_private --type rsa \
-    --dn 'C='"$ca_country"', O='"$ca_company"', CN=strongSwan Root CA - '"$company"' - '"$ca"'' \
+    --dn 'C='"$ca_country"', O='"$ca_company"', CN='"$ca_name"'' \
     --outform pem \
     > $ca_cert
 # # #
@@ -206,18 +206,18 @@ echo "Linking files..."
 ln -rsf ${hdir}central/scripts/cert-create.sh ${ca_dir}cert-create
 ln -rsf ${hdir}central/scripts/cert-create.sh ${ca_dir}cert-create
 ln -rsf ${hdir}central/scripts/cert-transfer.sh ${ca_dir}cert-transfer
-ln -rsf ${hdir}central/scripts/cert-remove.sh ${ca_dir}cert-remove
-ln -rsf ${hdir}central/scripts/cert-revoke.sh ${ca_dir}cert-revoke
-ln -rsf ${hdir}central/scripts/cert-show.sh ${ca_dir}cert-show
+ln -rsf ${hdir}central/scripts/cert-revoke-remove.sh ${ca_dir}cert-revoke-remove
+ln -rsf ${hdir}central/scripts/cert-info.sh ${ca_dir}cert-info
 
 # # #
 # Write configuration file
 mkdir -p ${ca_dir}CONFIGS
 echo "CA Name: $ca" > ${ca_dir}CONFIGS/ca-infos
 echo "CA Company: $ca_company" >> ${ca_dir}CONFIGS/ca-infos
+echo "CA Domain: ${ca_domain}" >> ${ca_dir}CONFIGS/ca-infos
 echo "CA Certificate: ${ca_cert##*STORE/}" >> ${ca_dir}CONFIGS/ca-infos
 echo "CA Private Key: ${ca_private##*STORE/}" >> ${ca_dir}CONFIGS/ca-infos
-
+echo "CA Full Name: ${ca_name}" >> ${ca_dir}CONFIGS/ca-infos
 
 
 echo "All files are in:"

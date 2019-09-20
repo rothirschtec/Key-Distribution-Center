@@ -10,7 +10,7 @@ check_dependencies() {
 
     # # #
     # Checks dependencies and tries to install them
-    dep=("ipsec" "rsync")
+    dep=("ipsec")
 
     ni=0
     for x in "${dep[@]}"; do
@@ -61,50 +61,14 @@ if [ -z $1 ]; then
     exit 1
 fi
 
-
-if ! cat ${hdir}CONFIGS/ca-infos | grep "SSH Host"; then
-    while ((i++)); read -r p 
-    do
-        echo [$i] $p
-        sshhosts[$i]=$p
-    done < <(cat ~/.ssh/config | grep ^Host | awk -F" " '{print $NF}')
-    read -p "Choose IPSEC gateway in ~/.ssh/config for further use [0-9]: " dec
-    ssh_host=${sshhosts[$dec]}
-    echo "Storing SSH host ${sshhosts[$dec]} inside CONFIGS/ca-infos for later use"
-    echo "SSH Host: ${sshhosts[$dec]}" >> ${hdir}CONFIGS/ca-infos
-
-else
-    ssh_host=$(readconfig "SSH Host" "${hdir}CONFIGS/ca-infos")
-
-fi
-
-
 # # #
-# Synchronize to IPSEC gateway
+# Revoke cert
 if [ -f $1 ] && [[ "${1##*.}" == "pem" ]] && [[ ${1} =~ "STORE/certs/" ]]; then
-    echo ""; echo "Synchronize certificate..."
-
-    if [[ $hosttype =~ [vV] ]]; then
-        file="STORE/private/${cert%.*}.pem"; echo "- SYNC: $file"; rsync -a ${hdir}$file ${ssh_host}:/etc/ipsec.d/private/
-    fi
-    file="STORE/certs/${cert%.*}.pem"; echo "- SYNC: $file"; rsync -a ${hdir}$file ${ssh_host}:/etc/ipsec.d/certs/
-    file="STORE/cacerts/ca.${ca_domain}_${ca}.pem"; echo "- SYNC: $file"; rsync -a ${hdir}$file ${ssh_host}:/etc/ipsec.d/cacerts/
-    file="STORE/crls/crl.${ca_domain}_${ca}.pem"; echo "- SYNC: $file"; rsync -a ${hdir}$file ${ssh_host}:/etc/ipsec.d/crls/
+    echo ""; echo "Show certificate info..."
+    ipsec pki --print --i $1 
 
 else 
     echo $1
     echo "File does not exist or does not fill in the requierements."
-fi
-
-# # #
-# Send mail
-if [[ $hosttype =~ [uU] ]]; then
-
-    echo ""; echo "Sending mail to user..."
-    echo -e "\
-    Hy $user_name,\n\
-    \n\
-    Your certificate has been transferred to the IPSEC Gateway\n\
-    The certificate was transferred by ${ca_name}." | mail -s "[$(date +%d.%m.%y)] Certificate activated by ${ca_name}" -a "From: ca@$ca_domain" $user_mail
-    
+    exit 2
 fi
