@@ -1,9 +1,19 @@
 # Certificate Authority
 
-This project helps you with creating a complete certificate authority for your company. Therefore it uses openssl.
+This project helps you to manage your certifcates created by the _ipsec pki_. The idea is, that you install a separated server that serves as a Certificate Authority. This server will be your highly confitential location. All certificates created are then send to an IPSEC Gateway. On this gateway is also a owncloud instance installed for _Out of Band_ key distribution.
 
-## Blog
-Find further instructions on [https://blog.rothirsch.tech](https://blog.rothirsch.tech/server_farm/configurations/strongswan/)
+## Dependencies
+
+First you have to build the latest strongswan version on both devices. [https://blog.rothirsch.tech/strongswan/](https://blog.rothirsch.tech/server_farm/configurations/strongswan/#!install).
+
+If you want to setup the ipsec gateway you have also to install owncloud. [https://blog.rothirsch.tech/owncloud/](https://blog.rothirsch.tech/server_farm/configurations/owncloud/#!install)
+
+### Other packages
+
+    apt install openssh-server rsync pwgen
+
+And you should allow the CA to login to the IPSEC gateway via SSH without password. [https://blog.rothirsch.tech/security/#!secure-ssh](https://blog.rothirsch.tech/security/#!secure-ssh)
+
 
 ## Installation
 
