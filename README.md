@@ -3,7 +3,7 @@
 This project helps you to manage your x509 certificates created by the _ipsec pki_. The idea is, that you install a separated server that serves as a Certificate Authority. This server will be your highly confidential location. All certificates created are then send to an IPSEC Gateway. On this gateway is also a owncloud instance installed for _Out of Band_ key distribution.
 
 
-![Explanation](central/images/to/RT-Blog-CA-explained_linkedIn.png?raw=true "Explanation")
+![Explanation](https://github.com/rothirschtec/RT-Blog-CA/blob/master/central/images/RT-Blog-CA-explained_linkedIn.png)
 
 
 ## Dependencies
