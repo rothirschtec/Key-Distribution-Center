@@ -2,6 +2,10 @@
 
 This project helps you to manage your x509 certificates created by the _ipsec pki_. The idea is, that you install a separated server that serves as a Certificate Authority. This server will be your highly confidential location. All certificates created are then send to an IPSEC Gateway. On this gateway is also a owncloud instance installed for _Out of Band_ key distribution.
 
+
+![Explanation](central/images/to/RT-Blog-CA-explained_linkedIn.png?raw=true "Explanation")
+
+
 ## Dependencies
 
 First you have to build the latest strongswan version on both devices. [https://blog.rothirsch.tech/strongswan/](https://blog.rothirsch.tech/server_farm/configurations/strongswan/#!install).
