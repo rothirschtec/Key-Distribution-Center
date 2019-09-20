@@ -45,4 +45,4 @@ And you should allow the CA to login to the IPSEC gateway via SSH without passwo
 
     ./cert-info STORE/certs/your.cert.pem
 
-The scripts are all selfexplaing an create configuration files inside CONFIGS
+The scripts are all selfexplaining an create configuration files inside CONFIGS
