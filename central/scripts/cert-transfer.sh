@@ -86,10 +86,42 @@ if [ -f $1 ] && [[ "${1##*.}" == "pem" ]] && [[ ${1} =~ "STORE/certs/" ]]; then
 
     if [[ $hosttype =~ [vV] ]]; then
         file="STORE/private/${cert%.*}.pem"; echo "- SYNC: $file"; rsync -a ${hdir}$file ${ssh_host}:/etc/ipsec.d/private/
+        if ! ssh gmo.gwx cat /etc/ipsec.secrets |grep ${cert%.*}.pem &> /dev/null; then
+            ssh gmo.gwx "echo : RSA ${cert%.*}.pem >> /etc/ipsec.secrets"
+             
+        fi
     fi
     file="STORE/certs/${cert%.*}.pem"; echo "- SYNC: $file"; rsync -a ${hdir}$file ${ssh_host}:/etc/ipsec.d/certs/
     file="STORE/cacerts/ca.${ca_domain}_${ca}.pem"; echo "- SYNC: $file"; rsync -a ${hdir}$file ${ssh_host}:/etc/ipsec.d/cacerts/
     file="STORE/crls/crl.${ca_domain}_${ca}.pem"; echo "- SYNC: $file"; rsync -a ${hdir}$file ${ssh_host}:/etc/ipsec.d/crls/
+
+    # # #
+    # Synchronize to owncloud
+    if [[ $hosttype =~ [uU] ]]; then
+        if ! cat ${hdir}CONFIGS/ca-infos | grep "Owncloud Data"; then
+            read -e -p "Owncloud root directory on $ssh_host: " ocroot
+            echo "Owncloud Data: $ocroot" >> ${hdir}CONFIGS/ca-infos
+
+        else
+            ocroot=$(readconfig "Owncloud Data" "${hdir}CONFIGS/ca-infos")
+
+        fi
+        if ! cat $conf | grep "Owncloud User"; then
+            read -e -p "Owncloud user on $ssh_host for $user_name: " ocuser
+            echo "Owncloud User: $ocuser" >> $conf
+
+        else
+            ocuser=$(readconfig "Owncloud User" "$conf")
+
+        fi
+        ocdata="${ocroot}data/"
+        conf=${hdir}CONFIGS/${cert%.*}.configs
+        ssh ${ssh_host} "mkdir -p ${ocdata}${ocuser}/files/certificates/"
+        file="../../../central/templates/README.md"; echo "- SYNC: $file"; rsync -a $file ${ssh_host}:${ocdata}${ocuser}/files/certificates/
+        file="STORE/p12/${cert%.*}.p12"; echo "- SYNC: $file"; rsync -a $file ${ssh_host}:${ocdata}${ocuser}/files/certificates/
+        ssh ${ssh_host} "chown -R www-data: $ocdata"
+        ssh ${ssh_host} "cd $ocroot; sudo -u www-data php occ files:scan --all" 
+    fi
 
 else 
     echo $1
@@ -104,7 +136,8 @@ if [[ $hosttype =~ [uU] ]]; then
     echo -e "\
     Hy $user_name,\n\
     \n\
-    Your certificate has been transferred to the IPSEC Gateway\n\
+    Your certificate has been transferred to the IPSEC Gateway\n\n\
+    You can find the certificate inside your owncloud user account in the directory _certificates_\n\
     The certificate was transferred by ${ca_name}." | mail -s "[$(date +%d.%m.%y)] Certificate activated by ${ca_name}" -a "From: ca@$ca_domain" $user_mail
     
 fi

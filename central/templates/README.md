@@ -4,7 +4,10 @@ Attached you can find a _.zip_archive which includes a new certificate for the V
 
 ## Install certificate
 
-Please use the *windows_install_cert.bat* for the installation of the certificate
+Install machine certficiate like described here
+https://wiki.strongswan.org/projects/strongswan/wiki/Win7Certs
+
+
 
 ## First configuration
 
@@ -14,6 +17,9 @@ If you are a Windows user and you have no connection configured at the moment pl
     control.exe /name Microsoft.NetworkandSharingCenter
 
 https://wiki.strongswan.org/projects/strongswan/wiki/Win7Config
+
+### Start up configuration
+https://wiki.strongswan.org/projects/strongswan/wiki/Win7Connect
 
 ## Increase security with AES-256-CBC and MODP2048
 
