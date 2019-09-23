@@ -50,3 +50,10 @@ And you should allow the CA to login to the IPSEC gateway via SSH without passwo
     ./cert-info STORE/certs/your.cert.pem
 
 The scripts are all selfexplaining an create configuration files inside CONFIGS
+
+## Big thanks to
+
+- https://www.danballard.com/references/strongswan/www.zeitgeist.se/2013/11/22/strongswan-howto-create-your-own-vpn/index.html
+- https://www.armbian.com
+- https://strongswan.org
+- and all other free and opensource software used for this project
