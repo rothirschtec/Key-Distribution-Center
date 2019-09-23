@@ -192,10 +192,10 @@ echo ""; echo "Your certificate has been created!"
 if [[ $hosttype == "u" ]]; then
     echo ""; echo "Sending mail to user..."
     echo -e "\
-    Hy $user_name,\n\
-    \n\
-    a new certficate is available for you. \n\
-    The certificate was provided by ${ca_name}. \n\
-    \n\
-    Please use following password: ${cert_pw}" | mail -s "[$(date +%d.%m.%y)] Certificate released by ${ca_name}" -a "From: ca@$ca_domain" $user_mail
+Hy $user_name,\n\n\
+a new certficate is available for you. \n\
+The certificate was provided by ${ca_name}. \n\n\
+!!! IMPORTANT, Please delete this e-mail after you have installed the key inside your machine.\n\
+If you believe that a third party has stolen your key and password, Please tell your administrator about it.\n\n\
+Please use following password: ${cert_pw}" | mail -s "[$(date +%d.%m.%y)] Certificate released by ${ca_name}" -a "From: ca@$ca_domain" $user_mail
 fi
