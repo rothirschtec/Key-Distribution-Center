@@ -1,4 +1,4 @@
-# Certificate Authority
+# Key management
 
 This project helps you to manage your x.509 certificates created by the _ipsec pki_. The idea is, that you install a separated server that serves as a Certificate Authority. This server will be your highly confidential site. All certificates created are then send to an IPSEC Gateway. On this gateway is also an owncloud instance installed for _Out of Band_ key distribution. We use a combination of 2 [armbian](https://www.armbian.com/) devices but you can also use it on other linux distributions.
 
