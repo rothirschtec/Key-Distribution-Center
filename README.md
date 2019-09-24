@@ -1,7 +1,7 @@
 # Key management
 _Using strongswan ipsec pki, ssh, rsync, owncloud,..._
 
-This project helps you to manage your x.509 certificates created by the _ipsec pki_. The idea is, that you install a separated server that serves as a Certificate Authority. This server will be your highly confidential site. All certificates created are then send to an IPSEC Gateway. On this gateway is also an owncloud instance installed for _Out of Band_ key distribution. We use a combination of 2 [armbian](https://www.armbian.com/) devices but you can also use it on other linux distributions.
+This project helps you manage your x.509 certificates created by the _ipsec pki_. The idea is that you install a separate server that serves as a Certificate Authority (CA). This server will be your highly confidential site. All created certificates are then sent to an IPSEC Gateway. There is also an owncloud instance installed for _Out of Band_ key distribution on this gateway. We use a combination of 2 [armbian](https://www.armbian.com/) devices but you can also use it with other linux distributions.
 
 
 ![Explanation](https://github.com/rothirschtec/RT-Blog-CA/blob/master/central/images/RT-Blog-CA-explained_linkedIn.png)
@@ -11,7 +11,7 @@ This project helps you to manage your x.509 certificates created by the _ipsec p
 
 First you have to build the latest strongswan version on both devices. [https://blog.rothirsch.tech/strongswan/](https://blog.rothirsch.tech/server_farm/configurations/strongswan/#!install).
 
-If you want to setup the ipsec gateway you have also to install owncloud. [https://blog.rothirsch.tech/owncloud/](https://blog.rothirsch.tech/server_farm/configurations/owncloud/#!install)
+If you want to set up the ipsec gateway you also have to install owncloud. [https://blog.rothirsch.tech/owncloud/](https://blog.rothirsch.tech/server_farm/configurations/owncloud/#!install)
 
 ### Other packages
 
@@ -29,7 +29,7 @@ And you should allow the CA to login to the IPSEC gateway via SSH without passwo
     ./createCA 
 
 
-3. Change into newly created directory  ***CAs/yourDomain/yourCA/*** and start
+3. Change into the newly created directory  ***CAs/yourDomain/yourCA/*** and start
 
 ### Create
 
@@ -50,7 +50,7 @@ And you should allow the CA to login to the IPSEC gateway via SSH without passwo
 
     ./cert-info STORE/certs/your.cert.pem
 
-The scripts are all selfexplaining an create configuration files inside CONFIGS
+The scripts are all self-explaining an create configuration files inside CONFIGS
 
 ## Big thanks to
 
