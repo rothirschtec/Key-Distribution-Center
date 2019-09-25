@@ -161,7 +161,7 @@ echo "For higher compatibility, e.g. for mobile devices, use a smaller length li
 echo "2048bit but you have to reissue them more often. It's not recommended to use"
 echo "a key lenght less than 1024bit. For a site to site connection you"
 echo "should probably use the 4096bit lenght."
-read -e -p "RSA claims that 2048-bit keys are sufficient until 2030. Keysize options (2048|3096|4096)bit. Key length (1024|2048|4096): " -i "4096" ca_keysize
+read -e -p "RSA claims that 2048-bit keys are sufficient until 2030. Keylength options (2048|3096|4096)bit. Key length (1024|2048|4096): " -i "4096" ca_klength
 
 
 
@@ -176,7 +176,7 @@ ca_dir="${hdir}CAs/$ca_domain/$ca/"
 echo "Creating CA private key..."
 ca_private="${ca_dir}STORE/private/ca.${ca_domain}_${ca}.pem"
 mkdir -p ${ca_dir}STORE/private/
-ipsec pki --gen --type rsa --size $ca_keysize \
+ipsec pki --gen --type rsa --size $ca_klength \
     --outform pem \
     > $ca_private
 chmod 600 $ca_private

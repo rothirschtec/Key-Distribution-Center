@@ -113,7 +113,7 @@ fi
 cert_country=$(askorrestore "Cert Country" "AT" "Country short name (2 letters)")
 echo "CA Company Name: $company"
 cert_lifetime=$(askorrestore "Cert Lifetime" "181" "Lifetime of user certificate")
-cert_keysize=$(askorrestore "Cert Keysize" "3096" "RSA claims that 2048-bit keys are sufficient until 2030. Keysize options (2048|3096|4096)bit" )
+cert_keylength=$(askorrestore "Cert Keylength" "3096" "RSA claims that 2048-bit keys are sufficient until 2030. Keylength options (2048|3096|4096)bit" )
 #read -p "CA State: " ca_state
 #read -p "CA City: " ca_city
 #read -p "CA Unit [Company - Server/Client (specific)]: " ca_unit
@@ -129,7 +129,7 @@ ca_dir="${hdir}STORE/"
 echo "Creating CA private key..."
 cert_private="${ca_dir}private/${cert_cn}-${ca}.pem"
 mkdir -p ${ca_dir}private/
-ipsec pki --gen --type rsa --size $cert_keysize \
+ipsec pki --gen --type rsa --size $cert_keylength \
     --outform pem \
     > $cert_private
 chmod 600 $cert_private
