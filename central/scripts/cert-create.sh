@@ -113,7 +113,7 @@ fi
 cert_country=$(askorrestore "Cert Country" "AT" "Country short name (2 letters)")
 echo "CA Company Name: $company"
 cert_lifetime=$(askorrestore "Cert Lifetime" "181" "Lifetime of user certificate")
-cert_keysize=$(askorrestore "Cert Keysize" "2048" "Keysize options (1024|2048|4096)" )
+cert_keysize=$(askorrestore "Cert Keysize" "3096" "RSA claims that 2048-bit keys are sufficient until 2030. Keysize options (2048|3096|4096)bit" )
 #read -p "CA State: " ca_state
 #read -p "CA City: " ca_city
 #read -p "CA Unit [Company - Server/Client (specific)]: " ca_unit
