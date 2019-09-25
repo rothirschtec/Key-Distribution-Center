@@ -1,4 +1,4 @@
-# Key management
+# Key distribution center
 _Using strongswan ipsec pki, ssh, rsync, owncloud,..._
 
 This project helps you manage your x.509 certificates created by the _ipsec pki_. The idea is that you install a separate server that serves as a Certificate Authority (CA). This server will be your highly confidential site. All created certificates are then sent to an IPSEC Gateway. There is also an owncloud instance installed for _Out of Band_ key distribution on this gateway. We use a combination of 2 [armbian](https://www.armbian.com/) devices but you can also use it with other linux distributions.
