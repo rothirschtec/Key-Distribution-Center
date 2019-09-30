@@ -161,7 +161,7 @@ echo "For higher compatibility, e.g. for mobile devices, use a smaller length li
 echo "2048bit but you have to reissue them more often. It's not recommended to use"
 echo "a key lenght less than 1024bit. For a site to site connection you"
 echo "should probably use the 4096bit lenght."
-read -e -p "RSA claims that 2048-bit keys are sufficient until 2030. Keylength options (2048|3096|4096)bit. Key length (1024|2048|4096): " -i "4096" ca_klength
+read -e -p "RSA claims that 2048-bit keys are sufficient until 2030. Keylength options (2048|3072|4096)bit. Key length (1024|2048|4096): " -i "4096" ca_klength
 
 
 
