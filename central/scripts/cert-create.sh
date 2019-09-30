@@ -91,7 +91,6 @@ else
     hosttype=u
 fi
 
-
 # # #
 # Initialize cert config
 if [ -z $host_config ]; then
@@ -140,6 +139,7 @@ echo "Creating CA certificate..."
 cert_file="${ca_dir}certs/${cert_cn}-${ca}.pem"
 mkdir -p ${ca_dir}certs/
 
+
 if [[ $hosttype == "v" ]]; then
     # # #
     # VPN Gateway
@@ -147,7 +147,7 @@ if [[ $hosttype == "v" ]]; then
         ipsec pki --issue --lifetime $cert_lifetime \
         --cacert ${ca_dir}$ca_cert \
         --cakey ${ca_dir}$ca_key \
-        --dn 'C='$cert_country', O='"$company"', CN='"$cert_cn"'' \
+        --dn "C=${cert_country}, O=${company}, CN=${cert_cn}" \
         --san $cert_cn \
         --flag serverAuth --flag ikeIntermediate \
         --outform pem > $cert_file
@@ -158,7 +158,7 @@ else
         ipsec pki --issue --lifetime $cert_lifetime \
         --cacert ${ca_dir}$ca_cert \
         --cakey ${ca_dir}$ca_key \
-        --dn 'C='"$cert_country"', O='"$company"', CN='"$cert_cn"'' \
+        --dn "C=${cert_country}, O=${company}, CN=${cert_cn}" \
         --san $cert_cn \
         --outform pem > $cert_file
     # # #
