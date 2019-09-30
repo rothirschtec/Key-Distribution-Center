@@ -60,7 +60,7 @@ function askorrestore() {
 
     if [ ! -z $host_config ] && [ -f $host_config ]; then
         answer=$(cat $host_config | grep "$1" | awk -F": " '{print $NF}')
-        echo $answer
+        printf "${answer}"
 
     fi
 
@@ -69,7 +69,7 @@ function askorrestore() {
         if [ ! -z $host_config ] && [ -f $host_config ]; then
             echo "$1: $answer" >> $host_config
         fi
-        echo $answer
+        printf "${answer}"
     fi
 }
 
