@@ -41,7 +41,8 @@ hdir="$PWD/"
 # Read configuration
 function readconfig {
     cat $2 | grep "$1" | awk -F": " '{print $NF}'
-}
+} 
+
 ca=$(readconfig "CA Name" "${hdir}CONFIGS/ca-infos")
 ca_cert=$(readconfig "CA Certificate" "${hdir}CONFIGS/ca-infos")
 ca_key=$(readconfig "CA Private Key" "${hdir}CONFIGS/ca-infos")
@@ -115,11 +116,40 @@ if [ -f $1 ] && [[ "${1##*.}" == "pem" ]] && [[ ${1} =~ "STORE/certs/" ]]; then
             ocuser=$(readconfig "Owncloud User" "$conf")
 
         fi
+        if ! cat ${hdir}CONFIGS/ca-infos | grep "Gateway Domainname"; then
+            read -e -p "Global domainname of the VPN gateway: " gatewayname
+            echo "Gateway Domainname: $gatewayname" >> ${hdir}CONFIGS/ca-infos
+
+        else
+            gatewayname=$(readconfig "Gateway Domainname" "${hdir}CONFIGS/ca-infos")
+
+        fi
         ocdata="${ocroot}data/"
         conf=${hdir}CONFIGS/${cert%.*}.configs
         ssh ${ssh_host} "mkdir -p ${ocdata}${ocuser}/files/certificates/"
         file="../../../central/templates/README.md"; echo "- SYNC: $file"; rsync -a $file ${ssh_host}:${ocdata}${ocuser}/files/certificates/
         file="STORE/p12/${cert%.*}.p12"; echo "- SYNC: $file"; rsync -a $file ${ssh_host}:${ocdata}${ocuser}/files/certificates/
+
+
+        subjectLeft=$(ipsec pki --print --i $1 |grep subject)
+        subjectLeft=$(sed 's/subject:  //g' <<< $subjectLeft)
+        subjectLeft=$(sed 's/"//g' <<< $subjectLeft)
+
+        subjectRight=$(cat $(grep -rl 'Hosttype: v' CONFIGS/*) | grep 'Cert CN:')
+        subjectRight=$(sed 's/Cert CN: //g' <<< $subjectRight)
+        subjectRight=$(ls STORE/certs/${subjectRight}*)
+        subjectRight=$(ipsec pki --print --i $subjectRight |grep subject)
+        subjectRight=$(sed 's/subject:  //g' <<< $subjectRight)
+        subjectRight=$(sed 's/"//g' <<< $subjectRight)
+        
+        cp ../../../central/scripts/installer/install_p12_lnx.sh /tmp/
+        sed -i "s/!0p12keyfile/${cert%.*}.p12/g" /tmp/install_p12_lnx.sh
+        sed -i "s/!0SubjectLeft/$subjectLeft/g" /tmp/install_p12_lnx.sh
+        sed -i "s/!0SubjectRight/$subjectRight/g" /tmp/install_p12_lnx.sh
+        sed -i "s/!0GatewayServer/$gatewayname/g" /tmp/install_p12_lnx.sh
+
+        file="/tmp/install_p12_lnx.sh"; echo "- SYNC: $file"; rsync -a $file ${ssh_host}:${ocdata}${ocuser}/files/certificates/
+
         ssh ${ssh_host} "chown -R www-data: $ocdata"
         ssh ${ssh_host} "cd $ocroot; sudo -u www-data php occ files:scan --all" 
     fi
