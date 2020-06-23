@@ -86,14 +86,15 @@ if [ -f $1 ] && [[ "${1##*.}" == "pem" ]] && [[ ${1} =~ "STORE/certs/" ]]; then
 
     if [[ $hosttype =~ [vV] ]]; then
         file="STORE/private/${cert%.*}.pem"; echo "- SYNC: $file"; rsync -a ${hdir}$file ${ssh_host}:/etc/ipsec.d/private/
-        if ! ssh gmo.gwx cat /etc/ipsec.secrets |grep ${cert%.*}.pem &> /dev/null; then
-            ssh gmo.gwx "echo : RSA ${cert%.*}.pem >> /etc/ipsec.secrets"
-             
+        if ! ssh ${ssh_host} cat /etc/ipsec.secrets |grep ${cert%.*}.pem &> /dev/null; then
+            ssh ${ssh_host} "echo : RSA ${cert%.*}.pem >> /etc/ipsec.secrets"
         fi
     fi
     file="STORE/certs/${cert%.*}.pem"; echo "- SYNC: $file"; rsync -a ${hdir}$file ${ssh_host}:/etc/ipsec.d/certs/
     file="STORE/cacerts/ca.${ca_domain}_${ca}.pem"; echo "- SYNC: $file"; rsync -a ${hdir}$file ${ssh_host}:/etc/ipsec.d/cacerts/
-    file="STORE/crls/crl.${ca_domain}_${ca}.pem"; echo "- SYNC: $file"; rsync -a ${hdir}$file ${ssh_host}:/etc/ipsec.d/crls/
+    if [ -f STORE/crls/crl.${ca_domain}_${ca}.pem ]; then
+        file="STORE/crls/crl.${ca_domain}_${ca}.pem"; echo "- SYNC: $file"; rsync -a ${hdir}$file ${ssh_host}:/etc/ipsec.d/crls/
+    fi
 
     # # #
     # Synchronize to owncloud
