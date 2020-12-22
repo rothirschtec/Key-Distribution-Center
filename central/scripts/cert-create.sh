@@ -165,7 +165,7 @@ else
 
     # p12 certificat with password
     mkdir -p ${ca_dir}p12/
-    cert_pw=$(pwgen -sy -c1 16)
+    cert_pw=$(pwgen -sy -r "\'" -c1 32)
     echo $cert_pw > "${ca_dir}p12/${cert_cn}-${ca}.pass"
     echo "Creating p12 certificates..."
     cert_p12="${ca_dir}p12/${cert_cn}-${ca}.p12"
