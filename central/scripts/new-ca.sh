@@ -50,16 +50,16 @@ mkdir -p ${hdir}CAs/
 declare -a cho_company=""
 declare -a ssl_value=""
 declare -i newca=1
-num_company=0
 
 # # #
 # loop through CAs subdirectory
 declare -a cho_company
 while read file
-do
+do	
     ((i++))
     echo "[$i] $file"
     cho_company[(($i-1))]=$file
+    ((i++))
 done < <(ls "${hdir}CAs/")
 
 if find ${hdir}CAs/ -mindepth 1 | read; then
@@ -75,7 +75,7 @@ while [  $nValid -eq 1 ]; do
 
     re='^[0-9]+$'
     if [[ $decision =~ $re ]]; then
-        ca_domain="${cho_company[$num_company-1]}"
+        ca_domain="${cho_company[$decision-1]}"
         nValid=0
 
     elif [ $decision == "n" ] || [ $decision == "no" ] ; then
@@ -117,7 +117,7 @@ nValid=1
 while [  $nValid -eq 1 ]; do
 
     if [[ $decision =~ $re ]]; then
-        ca="${cho_company[$num_company-1]}"
+        ca="${cho_company[$decision-1]}"
         nValid=0
         newca=0
 
