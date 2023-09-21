@@ -54,6 +54,7 @@ conf=${hdir}CONFIGS/${cert%.*}.configs
 user_mail=$(readconfig "User Mail" "$conf")
 user_name=$(readconfig "User Name" "$conf")
 hosttype=$(readconfig "Hosttype" "$conf")
+ssh_client=$(readconfig "SSH Client" "$conf")
 
 
 if [ -z $1 ]; then
@@ -91,6 +92,20 @@ if [ -f $1 ] && [[ "${1##*.}" == "pem" ]] && [[ ${1} =~ "STORE/certs/" ]]; then
             ssh ${ssh_host} "echo : RSA ${cert%.*}.pem >> /etc/ipsec.secrets"
         fi
     fi
+
+    if [[ $hosttype =~ [hH] ]]; then
+        file="STORE/p12/${cert%.*}.p12"; echo "- SYNC file $file, to ${ssh_client}"; rsync -a ${hdir}$file root@${ssh_client}:/etc/ipsec.d/private/
+        
+        if ! ssh root@${ssh_client} cat /etc/ipsec.secrets |grep ${cert%.*}.p12 &> /dev/null; then
+            echo "- Add passphrase to ipsec.secrets"
+            ssh root@${ssh_client} "echo ': P12 ${cert%.*}.p12 $(cat STORE/p12/${cert%.*}.pass)' >> /etc/ipsec.secrets"
+        else
+            echo "- File recognized in ipsec.secrets"
+            ssh root@${ssh_client} 'sed -i "s/: P12 '${cert%.*}'.p12.*/: P12 '${cert%.*}'.p12 '\'''$(cat STORE/p12/${cert%.*}.pass)''\''/g" /etc/ipsec.secrets'
+            ssh root@${ssh_client} 'service strongswan restart'
+        fi
+    fi
+
     file="STORE/certs/${cert%.*}.pem"; echo "- SYNC: $file"; rsync -a ${hdir}$file ${ssh_host}:/etc/ipsec.d/certs/
     file="STORE/cacerts/ca.${ca_domain}_${ca}.pem"; echo "- SYNC: $file"; rsync -a ${hdir}$file ${ssh_host}:/etc/ipsec.d/cacerts/
     if [ -f STORE/crls/crl.${ca_domain}_${ca}.pem ]; then

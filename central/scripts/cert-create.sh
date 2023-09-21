@@ -85,6 +85,11 @@ if [[ $hosttype =~ [vV] ]]; then
     cert_cn=$(sed "s/.$ca_domain//g" <<< $cert_cn)
     cert_cn="${cert_cn}.${ca_domain}" 
     hosttype=v
+elif  [[ $hosttype =~ [hH] ]]; then
+    cert_cn=$(askorrestore "Cert CN" "" "The username will be added to the CAs Domain .${ca_domain}")
+    cert_cn=$(sed "s/@$ca_domain//g" <<< $cert_cn)
+    cert_cn="${cert_cn}@${ca_domain}"
+    hosttype=h
 else
     cert_cn=$(askorrestore "Cert CN" "" "The username will be added to the CAs Domain .${ca_domain}")
     cert_cn=$(sed "s/@$ca_domain//g" <<< $cert_cn)
@@ -166,7 +171,7 @@ else
 
     # p12 certificat with password
     mkdir -p ${ca_dir}p12/
-    cert_pw=$(pwgen -sy -r "\'" -c1 16)
+    cert_pw=$(pwgen -s -A -B 22 1 | tr -d '/&\')
     echo $cert_pw > "${ca_dir}p12/${cert_cn}-${ca}.pass"
     echo "Creating p12 certificates..."
     cert_p12="${ca_dir}p12/${cert_cn}-${ca}.p12"

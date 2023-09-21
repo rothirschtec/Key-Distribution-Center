@@ -209,6 +209,7 @@ ln -rsf ${hdir}central/scripts/cert-transfer.sh ${ca_dir}cert-transfer
 ln -rsf ${hdir}central/scripts/cert-revoke-remove.sh ${ca_dir}cert-revoke-remove
 ln -rsf ${hdir}central/scripts/cert-info.sh ${ca_dir}cert-info
 ln -rsf ${hdir}central/scripts/cert-reissue-all-expired.sh ${ca_dir}cert-reissue-all-expired
+ln -rsf ${hdir}central/scripts/cert-reissue.sh ${ca_dir}cert-reissue
 
 # # #
 # Write configuration file
