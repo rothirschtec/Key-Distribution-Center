@@ -126,9 +126,9 @@ if [ -f $1 ] && [[ "${1##*.}" == "pem" ]] && [[ ${1} =~ "STORE/certs/" ]]; then
         fi
         ocdata="${ocroot}data/"
         conf=${hdir}CONFIGS/${cert%.*}.configs
-        ssh ${ssh_host} "mkdir -p ${ocdata}${ocuser}/files/certificates/"
-        file="../../../central/templates/README.md"; echo "- SYNC: $file"; rsync -a $file ${ssh_host}:${ocdata}${ocuser}/files/certificates/
-        file="STORE/p12/${cert%.*}.p12"; echo "- SYNC: $file"; rsync -a $file ${ssh_host}:${ocdata}${ocuser}/files/certificates/
+        ssh ${ssh_host} "mkdir -p ${ocdata}${ocuser}/files/certificates/${cert%.*}/"
+        file="../../../central/templates/README.md"; echo "- SYNC: $file"; rsync -a $file ${ssh_host}:${ocdata}${ocuser}/files/certificates/${cert%.*}/
+        file="STORE/p12/${cert%.*}.p12"; echo "- SYNC: $file"; rsync -a $file ${ssh_host}:${ocdata}${ocuser}/files/certificates/${cert%.*}/
 
 
         subjectLeft=$(ipsec pki --print --i $1 |grep subject)
@@ -148,7 +148,7 @@ if [ -f $1 ] && [[ "${1##*.}" == "pem" ]] && [[ ${1} =~ "STORE/certs/" ]]; then
         sed -i "s/!0SubjectRight/$subjectRight/g" /tmp/install_p12_lnx.sh
         sed -i "s/!0GatewayServer/$gatewayname/g" /tmp/install_p12_lnx.sh
 
-        file="/tmp/install_p12_lnx.sh"; echo "- SYNC: $file"; rsync -a $file ${ssh_host}:${ocdata}${ocuser}/files/certificates/
+        file="/tmp/install_p12_lnx.sh"; echo "- SYNC: $file"; rsync -a $file ${ssh_host}:${ocdata}${ocuser}/files/certificates/${cert%.*}/
 
         ssh ${ssh_host} "chown -R www-data: $ocdata"
         ssh ${ssh_host} "cd $ocroot; sudo -u www-data php occ files:scan --all" 
