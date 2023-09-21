@@ -47,6 +47,7 @@ hdir="$PWD/"
 function readconfig {
     cat ${hdir}CONFIGS/ca-infos | grep "$1" | awk -F": " '{print $NF}'
 }
+
 ca=$(readconfig "CA Name")
 company=$(readconfig "CA Company")
 ca_domain=$(readconfig "CA Domain")
@@ -165,7 +166,7 @@ else
 
     # p12 certificat with password
     mkdir -p ${ca_dir}p12/
-    cert_pw=$(pwgen -sy -r "\'" -c1 32)
+    cert_pw=$(pwgen -sy -r "\'" -c1 16)
     echo $cert_pw > "${ca_dir}p12/${cert_cn}-${ca}.pass"
     echo "Creating p12 certificates..."
     cert_p12="${ca_dir}p12/${cert_cn}-${ca}.p12"
