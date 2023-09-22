@@ -102,7 +102,6 @@ if [ -f $1 ] && [[ "${1##*.}" == "pem" ]] && [[ ${1} =~ "STORE/certs/" ]]; then
         else
             echo "- File recognized in ipsec.secrets"
             ssh root@${ssh_client} 'sed -i "s/: P12 '${cert%.*}'.p12.*/: P12 '${cert%.*}'.p12 '\'''$(cat STORE/p12/${cert%.*}.pass)''\''/g" /etc/ipsec.secrets'
-            ssh root@${ssh_client} 'service strongswan restart'
         fi
     fi
 
@@ -167,6 +166,15 @@ if [ -f $1 ] && [[ "${1##*.}" == "pem" ]] && [[ ${1} =~ "STORE/certs/" ]]; then
 
         ssh ${ssh_host} "chown -R www-data: $ocdata"
         ssh ${ssh_host} "cd $ocroot; sudo -u www-data php occ files:scan --all" 
+    fi
+
+    echo -e "\nReload IPsec on ${ssh_host}"
+    ssh ${ssh_host} "sudo /usr/sbin/ipsec reload"
+    if [[ $hosttype =~ [hH] ]]; then
+        echo -e "\nRestart IPsec on ${ssh_client}"
+        sleep 60
+        ssh root@${ssh_client} '/usr/sbin/ipsec restart'
+        
     fi
 
 else 
