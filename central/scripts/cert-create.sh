@@ -77,7 +77,7 @@ function askorrestore() {
 
 # # #
 # Gateway or host?
-hosttype=$(askorrestore 'Hosttype' '' '(U)ser/(v)pngateway')
+hosttype=$(askorrestore 'Hosttype' '' '(U)ser/(v)pngateway/(h)ost')
 
 # Get user or host name
 if [[ $hosttype =~ [vV] ]]; then
