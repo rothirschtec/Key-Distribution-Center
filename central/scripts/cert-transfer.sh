@@ -172,8 +172,8 @@ if [ -f $1 ] && [[ "${1##*.}" == "pem" ]] && [[ ${1} =~ "STORE/certs/" ]]; then
     ssh ${ssh_host} "sudo /usr/sbin/ipsec reload"
     if [[ $hosttype =~ [hH] ]]; then
         echo -e "\nRestart IPsec on ${ssh_client}"
-        sleep 60
-        ssh root@${ssh_client} '/usr/sbin/ipsec restart'
+        #sleep 60
+        #ssh root@${ssh_client} '/usr/sbin/ipsec restart'
         
     fi
 

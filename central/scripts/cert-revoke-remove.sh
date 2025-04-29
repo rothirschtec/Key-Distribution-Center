@@ -115,8 +115,8 @@ if [ -f $1 ] && [[ "${1##*.}" == "pem" ]] && [[ ${1} =~ "STORE/certs/" ]]; then
         ssh_host=$(readconfig "SSH Host" "${hdir}CONFIGS/ca-infos")
 
     fi
-    file="/etc/ipsec.d/certs/${cert%.*}.pem"; echo "- $file on $ssh_host"; ssh $ssh_host rm -f $file
-    file="STORE/crls/crl.${ca_domain}_${ca}.pem"; echo "- SYNC: $file"; rsync -a ${hdir}$file ${ssh_host}:/etc/ipsec.d/crls/
+    file="/etc/ipsec.d/certs/${cert%.*}.pem"; echo "- $file on $ssh_host"; sudo ssh $ssh_host rm -f $file
+    file="STORE/crls/crl.${ca_domain}_${ca}.pem"; echo "- SYNC: $file"; sudo rsync -a ${hdir}$file ${ssh_host}:/etc/ipsec.d/crls/
 
 else 
     echo $1
