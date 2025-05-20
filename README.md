@@ -58,6 +58,22 @@ python3 central/scripts/key_manager.py create myhost.example.com
 python3 central/scripts/key_manager.py info STORE/certs/myhost.example.com.pem
 ```
 
+## Docker
+
+A `Dockerfile` is provided to run the certificate management tools in a container.
+
+Build the image:
+
+```bash
+docker build -t kdc .
+```
+
+Run the CLI with persistent storage:
+
+```bash
+docker run --rm -it -v $(pwd)/data:/app/central/scripts/STORE kdc --help
+```
+
 ## Big thanks to
 
 - https://www.danballard.com/references/strongswan/www.zeitgeist.se/2013/11/22/strongswan-howto-create-your-own-vpn/index.html
