@@ -45,6 +45,19 @@ And you should allow the CA to login to the IPSEC gateway via SSH without passwo
 The legacy shell scripts remain in `central/scripts` but the preferred entry
 point is now the Python-based `kdc.py` utility.
 
+## Python key manager (experimental)
+
+An initial Python wrapper is available at `central/scripts/key_manager.py`.
+It provides a small command line interface to create certificates and show
+certificate information using the familiar `ipsec pki` backend.
+
+Usage example:
+
+```bash
+python3 central/scripts/key_manager.py create myhost.example.com
+python3 central/scripts/key_manager.py info STORE/certs/myhost.example.com.pem
+```
+
 ## Big thanks to
 
 - https://www.danballard.com/references/strongswan/www.zeitgeist.se/2013/11/22/strongswan-howto-create-your-own-vpn/index.html

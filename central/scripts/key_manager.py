@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """Compatibility wrapper calling :mod:`kdc`.
 
 This script existed in earlier versions of the repository.  It now simply
