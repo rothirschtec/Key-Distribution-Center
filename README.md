@@ -24,33 +24,26 @@ And you should allow the CA to login to the IPSEC gateway via SSH without passwo
 
 1. Simply clone the git repository
 
-2. Start the initialisation
-   
-    ./createCA 
+2. Initialise the environment using the Python tool
 
+    ```bash
+    python3 central/scripts/kdc.py create-ca --name myca --domain example.com --company "Example Ltd"
+    ```
 
-3. Change into the newly created directory  ***CAs/yourDomain/yourCA/*** and start
+3. Issue certificates using the same tool
 
-### Create
+    ```bash
+    python3 central/scripts/kdc.py create-cert myhost.example.com --ca-name myca --domain example.com --company "Example Ltd"
+    ```
 
-    # Create certificate
-    ./cert-create
-    # or with config
-    ./cert-create CONFIGS/your.config.configs
-    
-### Revoke
+4. Inspect a certificate
 
-    ./cert-revoke STORE/certs/your.cert.pem
+    ```bash
+    python3 central/scripts/kdc.py info STORE/certs/myhost.example.com.pem
+    ```
 
-### Transfer
-
-    ./cert-transfer STORE/certs/your.cert.pem
-
-### Show info
-
-    ./cert-info STORE/certs/your.cert.pem
-
-The scripts are all self-explaining an create configuration files inside CONFIGS
+The legacy shell scripts remain in `central/scripts` but the preferred entry
+point is now the Python-based `kdc.py` utility.
 
 ## Python key manager (experimental)
 
