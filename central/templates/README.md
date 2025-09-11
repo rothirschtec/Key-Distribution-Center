@@ -7,8 +7,6 @@ Attached you can find a _.zip_archive which includes a new certificate for the V
 Install machine certficiate like described here
 https://wiki.strongswan.org/projects/strongswan/wiki/Win7Certs
 
-
-
 ## First configuration
 
 If you are a Windows user and you have no connection configured at the moment please open the _Network and Sharing Center_
@@ -19,6 +17,7 @@ If you are a Windows user and you have no connection configured at the moment pl
 https://wiki.strongswan.org/projects/strongswan/wiki/Win7Config
 
 ### Start up configuration
+
 https://wiki.strongswan.org/projects/strongswan/wiki/Win7Connect
 
 ## Increase security with AES-256-CBC and MODP2048
@@ -36,6 +35,4 @@ value       | meaning
 ------------|--------------------------------------------------
 0 (default) | disable AES-256-CBC and MODP-2048
 1           | Enable AES-256-CBC and MODP-2048
-2           | Enforce the usage of AES-256-CBC and MODP-2048 
-
-
+2           | Enforce the usage of AES-256-CBC and MODP-2048

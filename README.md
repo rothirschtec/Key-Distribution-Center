@@ -1,11 +1,20 @@
+---
+title: "Key Distribution Center"
+domains: [hithlum]
+functions: [security, certificate-management]
+technologies: [strongswan, ipsec, python, docker, ssh]
+status: active
+maintainer: r9
+last_updated: 2025-01-05
+---
+
 # Key distribution center
+
 _Using strongswan ipsec pki, ssh, rsync, owncloud,..._
 
 This project helps you manage your x.509 certificates created by the _ipsec pki_. The idea is that you install a separate server that serves as a Certificate Authority (CA). This server will be your highly confidential site. All created certificates are then sent to an IPSEC Gateway. There is also an owncloud instance installed for _Out of Band_ key distribution on this gateway. We use a combination of 2 [armbian](https://www.armbian.com/) devices but you can also use it with other linux distributions.
 
-
 ![Explanation](https://github.com/rothirschtec/RT-Blog-CA/blob/master/central/images/RT-Blog-CA-explained_linkedIn.png)
-
 
 ## Dependencies
 
@@ -18,7 +27,6 @@ If you want to set up the ipsec gateway you also have to install owncloud. [http
     apt install openssh-server rsync pwgen
 
 And you should allow the CA to login to the IPSEC gateway via SSH without password. [https://blog.rothirsch.tech/security/#!secure-ssh](https://blog.rothirsch.tech/security/#!secure-ssh)
-
 
 ## Installation
 
@@ -77,6 +85,9 @@ docker run --rm -it -v $(pwd)/data:/app/central/scripts/STORE kdc --help
 ## Big thanks to
 
 - https://www.danballard.com/references/strongswan/www.zeitgeist.se/2013/11/22/strongswan-howto-create-your-own-vpn/index.html
+
 - https://www.armbian.com
+
 - https://strongswan.org
+
 - and all other free and opensource software used for this project
