@@ -34,12 +34,11 @@ def ca_detail(domain: str, name: str):
     """CA detail view."""
     ca = CAService.get_ca(domain, name)
     if ca is None:
-        flash(f"CA not found: {domain}_{name}", "error")
+        flash(f"CA not found: {domain}/{name}", "error")
         return redirect(url_for("web.list_cas"))
 
     # Get certificates signed by this CA
-    all_certs = CertificateService.list_certificates()
-    ca_certs = [c for c in all_certs if f"-{name}" in c.get("cert_path", "")]
+    ca_certs = CertificateService.list_certificates_by_ca(domain, name)
 
     return render_template("ca/detail.html", ca=ca, certificates=ca_certs)
 
@@ -71,13 +70,25 @@ def create_ca():
 def list_certificates():
     """List all certificates."""
     show_expired = request.args.get("expired", "").lower() == "true"
+    domain = request.args.get("domain")
+    ca_name = request.args.get("ca")
 
     if show_expired:
         certs = CertificateService.get_expired_certificates()
     else:
-        certs = CertificateService.list_certificates()
+        certs = CertificateService.list_certificates(domain=domain, ca_name=ca_name)
 
-    return render_template("certificates/list.html", certificates=certs, show_expired=show_expired)
+    # Get domains for filter dropdown
+    domains = CAService.list_domains()
+
+    return render_template(
+        "certificates/list.html",
+        certificates=certs,
+        show_expired=show_expired,
+        domains=domains,
+        selected_domain=domain,
+        selected_ca=ca_name,
+    )
 
 
 @web_bp.route("/certificates/<cn>")

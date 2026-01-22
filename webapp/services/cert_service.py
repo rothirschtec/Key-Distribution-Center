@@ -1,4 +1,8 @@
-"""Certificate service layer for the KDC web application."""
+"""Certificate service layer for the KDC web application.
+
+Supports multi-tenant directory structure:
+    CAs/<domain>/<ca-name>/STORE/certs/
+"""
 
 from __future__ import annotations
 
@@ -13,63 +17,168 @@ _scripts_dir = Path(__file__).resolve().parent.parent.parent / "central" / "scri
 if str(_scripts_dir) not in sys.path:
     sys.path.insert(0, str(_scripts_dir))
 
-from kdc import CA, CertificateManager, OperationResult
+from kdc import CA, CertificateManager, OperationResult, parse_cert_info, run
+
+from .ca_service import CAService
 
 
 class CertificateService:
-    """Service for managing certificates."""
+    """Service for managing certificates in multi-tenant mode."""
 
     @staticmethod
     def get_store_dir() -> Path:
-        """Get the STORE directory from config or default."""
+        """Get the legacy STORE directory (single-tenant mode)."""
         try:
             return Path(current_app.config["STORE_DIR"])
         except RuntimeError:
-            # Outside application context, use default
             return _scripts_dir / "STORE"
 
     @classmethod
-    def get_manager(cls) -> CertificateManager:
-        """Get a CertificateManager instance.
+    def get_manager_for_ca(cls, domain: str, ca_name: str) -> CertificateManager:
+        """Get a CertificateManager for a specific CA.
+
+        Args:
+            domain: CA domain.
+            ca_name: CA name.
 
         Returns:
-            CertificateManager configured with the correct store directory.
+            CertificateManager configured with the CA's store directory.
         """
-        store_dir = cls.get_store_dir()
+        store_dir = CAService.get_ca_store_dir(domain, ca_name)
         return CertificateManager(store_dir)
 
     @classmethod
-    def list_certificates(cls) -> list[dict[str, Any]]:
-        """List all certificates.
+    def list_certificates(cls, domain: str | None = None, ca_name: str | None = None) -> list[dict[str, Any]]:
+        """List certificates, optionally filtered by domain/CA.
+
+        Args:
+            domain: Optional domain filter.
+            ca_name: Optional CA name filter (requires domain).
 
         Returns:
             List of dictionaries containing certificate information.
         """
-        manager = cls.get_manager()
-        return manager.list_certificates()
+        certs = []
+
+        if CAService.is_multi_tenant():
+            cas_root = CAService.get_cas_root_dir()
+            if not cas_root.exists():
+                return []
+
+            # Determine which domains to scan
+            if domain:
+                domains = [domain]
+            else:
+                domains = CAService.list_domains()
+
+            for dom in domains:
+                domain_dir = cas_root / dom
+                if not domain_dir.exists():
+                    continue
+
+                # Determine which CAs to scan
+                if ca_name and domain == dom:
+                    ca_names = [ca_name]
+                else:
+                    ca_names = [
+                        d.name for d in domain_dir.iterdir()
+                        if d.is_dir() and not d.name.startswith(".")
+                    ]
+
+                for ca_n in ca_names:
+                    store_dir = domain_dir / ca_n / "STORE"
+                    certs_dir = store_dir / "certs"
+
+                    if not certs_dir.exists():
+                        continue
+
+                    for cert_file in certs_dir.glob("*.pem"):
+                        cert_info = cls._parse_cert(cert_file, dom, ca_n, store_dir)
+                        if cert_info:
+                            certs.append(cert_info)
+        else:
+            # Legacy single-tenant mode
+            store_dir = cls.get_store_dir()
+            manager = CertificateManager(store_dir)
+            return manager.list_certificates()
+
+        return certs
 
     @classmethod
-    def get_certificate(cls, cn: str) -> dict[str, Any] | None:
+    def _parse_cert(
+        cls, cert_path: Path, domain: str, ca_name: str, store_dir: Path
+    ) -> dict[str, Any] | None:
+        """Parse a certificate file and extract information.
+
+        Args:
+            cert_path: Path to the certificate.
+            domain: Domain name.
+            ca_name: CA name.
+            store_dir: Path to the STORE directory.
+
+        Returns:
+            Dictionary with certificate information, or None on error.
+        """
+        try:
+            result = run(
+                ["ipsec", "pki", "--print", "--in", str(cert_path)],
+                capture=True
+            )
+            info = parse_cert_info(result.stdout)
+            info["cert_path"] = str(cert_path)
+            info["domain"] = domain
+            info["ca_name"] = ca_name
+            info["store_dir"] = str(store_dir)
+
+            # Extract CN from filename if not in parsed info
+            if "subject_cn" not in info:
+                # Filename format: <cn>-<ca_name>.pem
+                basename = cert_path.stem
+                if f"-{ca_name}" in basename:
+                    info["cn"] = basename.replace(f"-{ca_name}", "")
+                else:
+                    info["cn"] = basename
+
+            # Find corresponding private key
+            key_path = store_dir / "private" / cert_path.name
+            info["key_path"] = str(key_path) if key_path.exists() else None
+
+            # Check for p12 file
+            p12_path = store_dir / "p12" / f"{cert_path.stem}.p12"
+            info["p12_path"] = str(p12_path) if p12_path.exists() else None
+
+            return info
+        except Exception as exc:
+            return {
+                "cert_path": str(cert_path),
+                "domain": domain,
+                "ca_name": ca_name,
+                "cn": cert_path.stem,
+                "error": str(exc),
+            }
+
+    @classmethod
+    def get_certificate(
+        cls, cn: str, domain: str | None = None, ca_name: str | None = None
+    ) -> dict[str, Any] | None:
         """Get a specific certificate by CN.
 
         Args:
             cn: Certificate Common Name (can be partial).
+            domain: Optional domain filter.
+            ca_name: Optional CA name filter.
 
         Returns:
             Dictionary with certificate information, or None if not found.
         """
-        manager = cls.get_manager()
-        cert_dir = manager.cert_dir
+        # Search all certificates
+        certs = cls.list_certificates(domain=domain, ca_name=ca_name)
 
-        # Find matching certificate files
-        matches = list(cert_dir.glob(f"*{cn}*.pem"))
-        if not matches:
-            return None
+        for cert in certs:
+            cert_cn = cert.get("subject_cn") or cert.get("cn", "")
+            if cn in cert_cn or cn in cert.get("cert_path", ""):
+                return cert
 
-        # Return first match
-        result = manager.info(matches[0])
-        if result.success:
-            return result.data
         return None
 
     @classmethod
@@ -99,24 +208,25 @@ class CertificateService:
         Returns:
             OperationResult with success status and details.
         """
-        store_dir = cls.get_store_dir()
-
         # Get defaults from config
         try:
             country = country or current_app.config["DEFAULT_COUNTRY"]
             key_length = key_length or current_app.config["DEFAULT_CERT_KEY_LENGTH"]
             lifetime = lifetime or current_app.config["DEFAULT_CERT_LIFETIME"]
         except RuntimeError:
-            # Outside application context, use sensible defaults
             country = country or "AT"
             key_length = key_length or 3072
             lifetime = lifetime or 181
 
+        # Get the correct store directory for this CA
+        store_dir = CAService.get_ca_store_dir(ca_domain, ca_name)
+
+        # Check CA exists
         ca = CA(ca_name, ca_domain, store_dir)
         if not ca.exists():
             return OperationResult(
                 success=False,
-                message=f"CA not found: {ca_domain}_{ca_name}"
+                message=f"CA not found: {ca_domain}/{ca_name}"
             )
 
         manager = CertificateManager(store_dir)
@@ -131,21 +241,45 @@ class CertificateService:
         )
 
     @classmethod
-    def delete_certificate(cls, cn: str) -> OperationResult:
+    def delete_certificate(
+        cls, cn: str, domain: str | None = None, ca_name: str | None = None
+    ) -> OperationResult:
         """Delete a certificate.
 
         Args:
             cn: Certificate Common Name or path.
+            domain: Optional domain (required for multi-tenant).
+            ca_name: Optional CA name (required for multi-tenant).
 
         Returns:
             OperationResult with success status.
         """
-        manager = cls.get_manager()
+        # First find the certificate to get its location
+        cert = cls.get_certificate(cn, domain=domain, ca_name=ca_name)
+        if not cert:
+            return OperationResult(
+                success=False,
+                message=f"Certificate not found: {cn}"
+            )
+
+        # Get the correct store directory
+        cert_domain = cert.get("domain")
+        cert_ca_name = cert.get("ca_name")
+
+        if cert_domain and cert_ca_name:
+            store_dir = CAService.get_ca_store_dir(cert_domain, cert_ca_name)
+        else:
+            store_dir = cls.get_store_dir()
+
+        manager = CertificateManager(store_dir)
+        cert_path = cert.get("cert_path")
+        if cert_path:
+            return manager.delete(Path(cert_path))
         return manager.delete(cn)
 
     @classmethod
     def get_expired_certificates(cls) -> list[dict[str, Any]]:
-        """Get all expired certificates.
+        """Get all expired certificates across all CAs.
 
         Returns:
             List of dictionaries containing expired certificate information.
@@ -154,13 +288,17 @@ class CertificateService:
         return [cert for cert in certs if cert.get("is_expired")]
 
     @classmethod
-    def get_certificate_stats(cls) -> dict[str, int]:
+    def get_certificate_stats(cls, domain: str | None = None, ca_name: str | None = None) -> dict[str, int]:
         """Get certificate statistics.
+
+        Args:
+            domain: Optional domain filter.
+            ca_name: Optional CA name filter.
 
         Returns:
             Dictionary with certificate counts.
         """
-        certs = cls.list_certificates()
+        certs = cls.list_certificates(domain=domain, ca_name=ca_name)
         expired = sum(1 for cert in certs if cert.get("is_expired"))
 
         return {
@@ -168,3 +306,16 @@ class CertificateService:
             "expired": expired,
             "valid": len(certs) - expired,
         }
+
+    @classmethod
+    def list_certificates_by_ca(cls, domain: str, ca_name: str) -> list[dict[str, Any]]:
+        """List all certificates for a specific CA.
+
+        Args:
+            domain: Domain name.
+            ca_name: CA name.
+
+        Returns:
+            List of certificate information dictionaries.
+        """
+        return cls.list_certificates(domain=domain, ca_name=ca_name)

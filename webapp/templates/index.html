@@ -47,6 +47,7 @@
         <thead>
             <tr>
                 <th>Common Name</th>
+                <th>Domain / CA</th>
                 <th>Expires</th>
                 <th>Status</th>
                 <th>Actions</th>
@@ -56,6 +57,10 @@
             {% for cert in recent_certs %}
             <tr>
                 <td>{{ cert.subject_cn or cert.cn or 'Unknown' }}</td>
+                <td>
+                    <small>{{ cert.domain or '' }}</small><br>
+                    <strong>{{ cert.ca_name or '' }}</strong>
+                </td>
                 <td>{{ cert.not_after or 'Unknown' }}</td>
                 <td>
                     {% if cert.is_expired %}

@@ -20,9 +20,9 @@
     <thead>
         <tr>
             <th>Common Name</th>
+            <th>Domain / CA</th>
             <th>Organization</th>
             <th>Expires</th>
-            <th>Key Size</th>
             <th>Status</th>
             <th>Actions</th>
         </tr>
@@ -31,9 +31,12 @@
         {% for cert in certificates %}
         <tr>
             <td>{{ cert.subject_cn or cert.cn or 'Unknown' }}</td>
+            <td>
+                <small>{{ cert.domain or '' }}</small><br>
+                <strong>{{ cert.ca_name or '' }}</strong>
+            </td>
             <td>{{ cert.subject_o or 'Unknown' }}</td>
             <td>{{ cert.not_after or 'Unknown' }}</td>
-            <td>{{ cert.pubkey_bits or 'Unknown' }} bits</td>
             <td>
                 {% if cert.is_expired %}
                     <span class="badge badge-danger">Expired</span>

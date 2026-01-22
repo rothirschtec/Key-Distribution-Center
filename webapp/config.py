@@ -10,13 +10,23 @@ class Config:
     # Flask settings
     SECRET_KEY = os.environ.get("SECRET_KEY", "dev-key-change-in-production")
 
-    # KDC paths
+    # KDC paths - Multi-tenant mode
+    # CAS_ROOT_DIR: Root directory containing all CAs organized as:
+    #   CAs/<domain>/<ca-name>/STORE/{cacerts,certs,private,crls,p12}
+    CAS_ROOT_DIR = Path(
+        os.environ.get("CAS_ROOT_DIR", "/app/CAs")
+    )
+
+    # Legacy single-tenant mode (deprecated, use CAS_ROOT_DIR)
     STORE_DIR = Path(
         os.environ.get("STORE_DIR", "/app/central/scripts/STORE")
     )
     SCRIPTS_DIR = Path(
         os.environ.get("SCRIPTS_DIR", "/app/central/scripts")
     )
+
+    # Multi-tenant mode flag
+    MULTI_TENANT = os.environ.get("MULTI_TENANT", "true").lower() == "true"
 
     # Future authentication hook
     AUTH_ENABLED = os.environ.get("AUTH_ENABLED", "false").lower() == "true"
@@ -34,6 +44,12 @@ class DevelopmentConfig(Config):
 
     DEBUG = True
     # Use local paths for development
+    CAS_ROOT_DIR = Path(
+        os.environ.get(
+            "CAS_ROOT_DIR",
+            Path(__file__).resolve().parent.parent / "CAs"
+        )
+    )
     STORE_DIR = Path(
         os.environ.get(
             "STORE_DIR",
