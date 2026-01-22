@@ -1,0 +1,100 @@
+{% extends "base.html" %}
+
+{% block title %}CA: {{ ca.name }}{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>CA: {{ ca.domain }}_{{ ca.name }}</h1>
+    <a href="{{ url_for('web.list_cas') }}" class="btn btn-secondary">Back to List</a>
+</div>
+
+<div class="detail-card">
+    <h2>CA Details</h2>
+    <dl class="detail-list">
+        <dt>Name</dt>
+        <dd>{{ ca.name }}</dd>
+
+        <dt>Domain</dt>
+        <dd>{{ ca.domain }}</dd>
+
+        <dt>Subject</dt>
+        <dd>{{ ca.subject or 'Unknown' }}</dd>
+
+        <dt>Issuer</dt>
+        <dd>{{ ca.issuer or 'Self-signed' }}</dd>
+
+        <dt>Not Before</dt>
+        <dd>{{ ca.not_before or 'Unknown' }}</dd>
+
+        <dt>Not After</dt>
+        <dd>{{ ca.not_after or 'Unknown' }}</dd>
+
+        <dt>Public Key</dt>
+        <dd>{{ ca.pubkey_type or 'Unknown' }} {{ ca.pubkey_bits or '' }} bits</dd>
+
+        <dt>Certificate Path</dt>
+        <dd><code>{{ ca.cert_path }}</code></dd>
+
+        <dt>Key Path</dt>
+        <dd><code>{{ ca.key_path }}</code></dd>
+
+        <dt>Status</dt>
+        <dd>
+            {% if ca.is_expired %}
+                <span class="badge badge-danger">Expired</span>
+            {% else %}
+                <span class="badge badge-success">Valid</span>
+            {% endif %}
+        </dd>
+    </dl>
+</div>
+
+{% if certificates %}
+<div class="section">
+    <h2>Certificates Signed by this CA</h2>
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Common Name</th>
+                <th>Expires</th>
+                <th>Status</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for cert in certificates %}
+            <tr>
+                <td>{{ cert.subject_cn or cert.cn or 'Unknown' }}</td>
+                <td>{{ cert.not_after or 'Unknown' }}</td>
+                <td>
+                    {% if cert.is_expired %}
+                        <span class="badge badge-danger">Expired</span>
+                    {% else %}
+                        <span class="badge badge-success">Valid</span>
+                    {% endif %}
+                </td>
+                <td>
+                    <a href="{{ url_for('web.certificate_detail', cn=cert.subject_cn or cert.cn or 'unknown') }}" class="btn btn-small">View</a>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% else %}
+<div class="section">
+    <h2>Certificates</h2>
+    <div class="empty-state">
+        <p>No certificates signed by this CA.</p>
+        <a href="{{ url_for('web.create_certificate') }}" class="btn btn-primary">Create Certificate</a>
+    </div>
+</div>
+{% endif %}
+
+{% if ca.raw_output %}
+<div class="section">
+    <h2>Raw Certificate Info</h2>
+    <pre class="code-block">{{ ca.raw_output }}</pre>
+</div>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,95 @@
+{% extends "base.html" %}
+
+{% block title %}Certificate: {{ cert.subject_cn or cert.cn }}{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>Certificate: {{ cert.subject_cn or cert.cn or 'Unknown' }}</h1>
+    <a href="{{ url_for('web.list_certificates') }}" class="btn btn-secondary">Back to List</a>
+</div>
+
+<div class="detail-card">
+    <h2>Certificate Details</h2>
+    <dl class="detail-list">
+        <dt>Subject</dt>
+        <dd>{{ cert.subject or 'Unknown' }}</dd>
+
+        <dt>Issuer</dt>
+        <dd>{{ cert.issuer or 'Unknown' }}</dd>
+
+        <dt>Serial Number</dt>
+        <dd><code>{{ cert.serial or 'Unknown' }}</code></dd>
+
+        <dt>Not Before</dt>
+        <dd>{{ cert.not_before or 'Unknown' }}</dd>
+
+        <dt>Not After</dt>
+        <dd>{{ cert.not_after or 'Unknown' }}</dd>
+
+        <dt>Public Key</dt>
+        <dd>{{ cert.pubkey_type or 'Unknown' }} {{ cert.pubkey_bits or '' }} bits</dd>
+
+        {% if cert.san %}
+        <dt>Subject Alternative Names</dt>
+        <dd>{{ cert.san }}</dd>
+        {% endif %}
+
+        <dt>Certificate Path</dt>
+        <dd><code>{{ cert.cert_path }}</code></dd>
+
+        {% if cert.key_path %}
+        <dt>Key Path</dt>
+        <dd><code>{{ cert.key_path }}</code></dd>
+        {% endif %}
+
+        <dt>Status</dt>
+        <dd>
+            {% if cert.is_expired %}
+                <span class="badge badge-danger">Expired</span>
+            {% else %}
+                <span class="badge badge-success">Valid</span>
+            {% endif %}
+        </dd>
+    </dl>
+</div>
+
+<div class="section">
+    <h2>Actions</h2>
+    <div class="action-buttons">
+        <form method="POST" action="{{ url_for('web.transfer_certificate', cn=cert.subject_cn or cert.cn) }}" class="inline-form">
+            <button type="submit" class="btn btn-primary"
+                    onclick="return confirm('Transfer this certificate to the IPSEC gateway?');">
+                Transfer to Gateway
+            </button>
+        </form>
+
+        <form method="POST" action="{{ url_for('web.reissue_certificate', cn=cert.subject_cn or cert.cn) }}" class="inline-form">
+            <button type="submit" class="btn btn-warning"
+                    onclick="return confirm('Reissue this certificate? This will revoke the current certificate.');">
+                Reissue
+            </button>
+        </form>
+
+        <form method="POST" action="{{ url_for('web.revoke_certificate', cn=cert.subject_cn or cert.cn) }}" class="inline-form">
+            <button type="submit" class="btn btn-danger"
+                    onclick="return confirm('Revoke this certificate? This action cannot be undone.');">
+                Revoke
+            </button>
+        </form>
+
+        <form method="POST" action="{{ url_for('web.delete_certificate', cn=cert.subject_cn or cert.cn) }}" class="inline-form">
+            <button type="submit" class="btn btn-danger"
+                    onclick="return confirm('Delete this certificate? This action cannot be undone.');">
+                Delete
+            </button>
+        </form>
+    </div>
+</div>
+
+{% if cert.raw_output %}
+<div class="section">
+    <h2>Raw Certificate Info</h2>
+    <pre class="code-block">{{ cert.raw_output }}</pre>
+</div>
+{% endif %}
+{% endblock %}

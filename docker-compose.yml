@@ -1,0 +1,39 @@
+---
+services:
+  kdc-webapp:
+    build: .
+    container_name: kdc-webapp
+    ports:
+      - "5000:5000"
+    volumes:
+      # Persist certificate store
+      - ./data/STORE:/app/central/scripts/STORE
+      # Mount SSH keys for certificate transfer (read-only)
+      - ~/.ssh:/root/.ssh:ro
+    environment:
+      - SECRET_KEY=${SECRET_KEY:-change-me-in-production}
+      - FLASK_ENV=${FLASK_ENV:-production}
+      - DEFAULT_COUNTRY=${DEFAULT_COUNTRY:-AT}
+      - DEFAULT_CA_KEY_LENGTH=${DEFAULT_CA_KEY_LENGTH:-4096}
+      - DEFAULT_CA_LIFETIME=${DEFAULT_CA_LIFETIME:-3650}
+      - DEFAULT_CERT_KEY_LENGTH=${DEFAULT_CERT_KEY_LENGTH:-3072}
+      - DEFAULT_CERT_LIFETIME=${DEFAULT_CERT_LIFETIME:-181}
+    restart: unless-stopped
+
+  # Development service with hot reload
+  kdc-dev:
+    build: .
+    container_name: kdc-dev
+    ports:
+      - "5001:5000"
+    volumes:
+      - ./data/STORE:/app/central/scripts/STORE
+      - ./webapp:/app/webapp:ro
+      - ./wsgi.py:/app/wsgi.py:ro
+      - ~/.ssh:/root/.ssh:ro
+    environment:
+      - SECRET_KEY=dev-secret-key
+      - FLASK_ENV=development
+    command: python wsgi.py
+    profiles:
+      - dev

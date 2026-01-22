@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard{% endblock %}
+
+{% block content %}
+<h1>Dashboard</h1>
+
+<div class="stats-grid">
+    <div class="stat-card">
+        <h3>Certificate Authorities</h3>
+        <p class="stat-number">{{ cas|length }}</p>
+        <a href="{{ url_for('web.list_cas') }}" class="btn btn-secondary">View All</a>
+    </div>
+
+    <div class="stat-card">
+        <h3>Total Certificates</h3>
+        <p class="stat-number">{{ cert_stats.total }}</p>
+        <a href="{{ url_for('web.list_certificates') }}" class="btn btn-secondary">View All</a>
+    </div>
+
+    <div class="stat-card">
+        <h3>Valid Certificates</h3>
+        <p class="stat-number stat-success">{{ cert_stats.valid }}</p>
+    </div>
+
+    <div class="stat-card">
+        <h3>Expired Certificates</h3>
+        <p class="stat-number {% if cert_stats.expired > 0 %}stat-danger{% endif %}">{{ cert_stats.expired }}</p>
+        {% if cert_stats.expired > 0 %}
+        <a href="{{ url_for('web.list_certificates', expired='true') }}" class="btn btn-warning">View Expired</a>
+        {% endif %}
+    </div>
+</div>
+
+<div class="actions-section">
+    <h2>Quick Actions</h2>
+    <div class="action-buttons">
+        <a href="{{ url_for('web.create_ca') }}" class="btn btn-primary">Create CA</a>
+        <a href="{{ url_for('web.create_certificate') }}" class="btn btn-primary">Create Certificate</a>
+    </div>
+</div>
+
+{% if recent_certs %}
+<div class="recent-section">
+    <h2>Recent Certificates</h2>
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Common Name</th>
+                <th>Expires</th>
+                <th>Status</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for cert in recent_certs %}
+            <tr>
+                <td>{{ cert.subject_cn or cert.cn or 'Unknown' }}</td>
+                <td>{{ cert.not_after or 'Unknown' }}</td>
+                <td>
+                    {% if cert.is_expired %}
+                        <span class="badge badge-danger">Expired</span>
+                    {% else %}
+                        <span class="badge badge-success">Valid</span>
+                    {% endif %}
+                </td>
+                <td>
+                    <a href="{{ url_for('web.certificate_detail', cn=cert.subject_cn or cert.cn or 'unknown') }}" class="btn btn-small">View</a>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endif %}
+{% endblock %}

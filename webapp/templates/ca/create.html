@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+
+{% block title %}Create CA{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>Create Certificate Authority</h1>
+    <a href="{{ url_for('web.list_cas') }}" class="btn btn-secondary">Cancel</a>
+</div>
+
+<div class="form-card">
+    <form method="POST" action="{{ url_for('web.create_ca') }}">
+        <div class="form-group">
+            <label for="name">CA Name *</label>
+            <input type="text" id="name" name="name" required
+                   placeholder="e.g., myca"
+                   pattern="[a-zA-Z0-9_-]+"
+                   title="Only letters, numbers, underscores, and hyphens">
+            <small>Short name for the CA (letters, numbers, underscores, hyphens only)</small>
+        </div>
+
+        <div class="form-group">
+            <label for="domain">Domain *</label>
+            <input type="text" id="domain" name="domain" required
+                   placeholder="e.g., example.com">
+            <small>Domain for the CA (e.g., 'example.com')</small>
+        </div>
+
+        <div class="form-group">
+            <label for="company">Company *</label>
+            <input type="text" id="company" name="company" required
+                   placeholder="e.g., Example Ltd">
+            <small>Company name for the certificate DN</small>
+        </div>
+
+        <div class="form-row">
+            <div class="form-group">
+                <label for="country">Country</label>
+                <input type="text" id="country" name="country"
+                       value="AT" maxlength="2" pattern="[A-Z]{2}"
+                       title="Two uppercase letters">
+                <small>Two-letter country code (default: AT)</small>
+            </div>
+
+            <div class="form-group">
+                <label for="key_length">Key Length</label>
+                <select id="key_length" name="key_length">
+                    <option value="2048">2048 bits</option>
+                    <option value="3072">3072 bits</option>
+                    <option value="4096" selected>4096 bits (recommended)</option>
+                    <option value="8192">8192 bits</option>
+                </select>
+                <small>RSA key size in bits</small>
+            </div>
+
+            <div class="form-group">
+                <label for="lifetime">Lifetime (days)</label>
+                <input type="number" id="lifetime" name="lifetime"
+                       value="3650" min="1" max="36500">
+                <small>CA validity period (default: 10 years)</small>
+            </div>
+        </div>
+
+        <div class="form-actions">
+            <button type="submit" class="btn btn-primary">Create CA</button>
+            <a href="{{ url_for('web.list_cas') }}" class="btn btn-secondary">Cancel</a>
+        </div>
+    </form>
+</div>
+{% endblock %}

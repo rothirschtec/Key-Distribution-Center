@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+
+{% block title %}Certificate Authorities{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>Certificate Authorities</h1>
+    <a href="{{ url_for('web.create_ca') }}" class="btn btn-primary">Create CA</a>
+</div>
+
+{% if cas %}
+<table class="table">
+    <thead>
+        <tr>
+            <th>Name</th>
+            <th>Domain</th>
+            <th>Subject</th>
+            <th>Expires</th>
+            <th>Status</th>
+            <th>Actions</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for ca in cas %}
+        <tr>
+            <td>{{ ca.name }}</td>
+            <td>{{ ca.domain }}</td>
+            <td>{{ ca.subject_cn or ca.subject or 'Unknown' }}</td>
+            <td>{{ ca.not_after or 'Unknown' }}</td>
+            <td>
+                {% if ca.is_expired %}
+                    <span class="badge badge-danger">Expired</span>
+                {% elif ca.error %}
+                    <span class="badge badge-warning">Error</span>
+                {% else %}
+                    <span class="badge badge-success">Valid</span>
+                {% endif %}
+            </td>
+            <td>
+                <a href="{{ url_for('web.ca_detail', domain=ca.domain, name=ca.name) }}" class="btn btn-small">View</a>
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% else %}
+<div class="empty-state">
+    <p>No Certificate Authorities found.</p>
+    <a href="{{ url_for('web.create_ca') }}" class="btn btn-primary">Create your first CA</a>
+</div>
+{% endif %}
+{% endblock %}
