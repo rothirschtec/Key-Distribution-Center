@@ -1,6 +1,8 @@
 """Web UI views for the KDC web application."""
 
-from flask import flash, redirect, render_template, request, url_for
+from pathlib import Path
+
+from flask import flash, redirect, render_template, request, send_file, url_for
 
 from ..services import CAService, CertificateService, TransferService
 from . import web_bp
@@ -188,11 +190,113 @@ def reissue_certificate(cn: str):
         return redirect(url_for("web.list_certificates"))
 
     cert_path = cert.get("cert_path", f"STORE/certs/{cn}.pem")
-    result = TransferService.reissue_certificate(cert_path)
+    domain = cert.get("domain")
+    ca_name = cert.get("ca_name")
+
+    result = TransferService.reissue_certificate(
+        cert_path=cert_path,
+        domain=domain,
+        ca_name=ca_name,
+    )
 
     if result.success:
-        flash("Certificate reissued successfully", "success")
+        new_cert_path = result.data.get("cert_path", "")
+        flash(f"Certificate reissued: {result.message}", "success")
     else:
         flash(f"Reissue failed: {result.message}", "error")
+        if result.error:
+            flash(f"Error details: {result.error}", "error")
+
+    # Use the new CN from result data if available (in case it changed)
+    new_cn = result.data.get("cn", cn) if result.data else cn
+    return redirect(url_for("web.certificate_detail", cn=new_cn))
+
+
+@web_bp.route("/certificates/<cn>/download/p12")
+def download_p12(cn: str):
+    """Download P12 bundle for a certificate."""
+    cert = CertificateService.get_certificate(cn)
+    if cert is None:
+        flash(f"Certificate not found: {cn}", "error")
+        return redirect(url_for("web.list_certificates"))
+
+    p12_path = cert.get("p12_path")
+    if not p12_path:
+        flash("No P12 bundle available for this certificate", "error")
+        return redirect(url_for("web.certificate_detail", cn=cn))
+
+    p12_file = Path(p12_path)
+    if not p12_file.exists():
+        flash("P12 file not found on disk", "error")
+        return redirect(url_for("web.certificate_detail", cn=cn))
+
+    return send_file(
+        p12_file,
+        as_attachment=True,
+        download_name=p12_file.name,
+        mimetype="application/x-pkcs12"
+    )
+
+
+@web_bp.route("/certificates/<cn>/generate-p12", methods=["POST"])
+def generate_p12(cn: str):
+    """Generate P12 bundle for a certificate."""
+    cert = CertificateService.get_certificate(cn)
+    if cert is None:
+        flash(f"Certificate not found: {cn}", "error")
+        return redirect(url_for("web.list_certificates"))
+
+    # Get company from cert info or use default
+    company = cert.get("subject_o", "Unknown")
+
+    result = CertificateService.generate_p12(
+        cn=cn,
+        domain=cert.get("domain"),
+        ca_name=cert.get("ca_name"),
+        company=company,
+    )
+
+    if result.success:
+        flash("P12 bundle generated successfully", "success")
+    else:
+        flash(f"Failed to generate P12: {result.message}", "error")
 
     return redirect(url_for("web.certificate_detail", cn=cn))
+
+
+@web_bp.route("/certificates/<cn>/download/vpn-bundle/<target_os>")
+def download_vpn_bundle(cn: str, target_os: str):
+    """Download VPN setup bundle for a certificate.
+
+    Args:
+        cn: Certificate Common Name.
+        target_os: Target OS (linux, mac, windows).
+    """
+    if target_os not in ("linux", "mac", "windows"):
+        flash(f"Invalid target OS: {target_os}", "error")
+        return redirect(url_for("web.certificate_detail", cn=cn))
+
+    cert = CertificateService.get_certificate(cn)
+    if cert is None:
+        flash(f"Certificate not found: {cn}", "error")
+        return redirect(url_for("web.list_certificates"))
+
+    result = CertificateService.generate_vpn_bundle(
+        cn=cn,
+        target_os=target_os,
+        domain=cert.get("domain"),
+        ca_name=cert.get("ca_name"),
+    )
+
+    if result is None:
+        flash("Failed to generate VPN bundle. Ensure P12 exists.", "error")
+        return redirect(url_for("web.certificate_detail", cn=cn))
+
+    zip_buffer, filename = result
+
+    return send_file(
+        zip_buffer,
+        as_attachment=True,
+        download_name=filename,
+        mimetype="application/zip"
+    )

@@ -6,11 +6,13 @@ Supports multi-tenant directory structure:
 
 from __future__ import annotations
 
+import io
 import sys
+import zipfile
 from pathlib import Path
 from typing import Any
 
-from flask import current_app
+from flask import current_app, render_template_string
 
 # Add scripts directory to path for kdc import
 _scripts_dir = Path(__file__).resolve().parent.parent.parent / "central" / "scripts"
@@ -149,9 +151,18 @@ class CertificateService:
             key_path = store_dir / "private" / cert_path.name
             info["key_path"] = str(key_path) if key_path.exists() else None
 
-            # Check for p12 file
+            # Check for p12 file and password
             p12_path = store_dir / "p12" / f"{cert_path.stem}.p12"
             info["p12_path"] = str(p12_path) if p12_path.exists() else None
+
+            pass_path = store_dir / "p12" / f"{cert_path.stem}.pass"
+            if pass_path.exists():
+                try:
+                    info["p12_password"] = pass_path.read_text().strip()
+                except Exception:
+                    info["p12_password"] = None
+            else:
+                info["p12_password"] = None
 
             return info
         except Exception as exc:
@@ -325,3 +336,168 @@ class CertificateService:
             List of certificate information dictionaries.
         """
         return cls.list_certificates(domain=domain, ca_name=ca_name)
+
+    @classmethod
+    def generate_p12(
+        cls,
+        cn: str,
+        domain: str | None = None,
+        ca_name: str | None = None,
+        company: str = "Unknown",
+    ) -> OperationResult:
+        """Generate a P12 bundle for an existing certificate.
+
+        Args:
+            cn: Certificate Common Name or path.
+            domain: Optional domain filter.
+            ca_name: Optional CA name filter.
+            company: Company name for P12 friendly name.
+
+        Returns:
+            OperationResult with p12_path and password.
+        """
+        # First find the certificate to get its location
+        cert = cls.get_certificate(cn, domain=domain, ca_name=ca_name)
+        if not cert:
+            return OperationResult(
+                success=False,
+                message=f"Certificate not found: {cn}"
+            )
+
+        # Get the CA
+        cert_domain = cert.get("domain")
+        cert_ca_name = cert.get("ca_name")
+
+        if not cert_domain or not cert_ca_name:
+            return OperationResult(
+                success=False,
+                message="Cannot determine CA for this certificate"
+            )
+
+        # Get CA object
+        from .ca_service import CAService
+        ca = CAService.get_ca_object(cert_ca_name, cert_domain)
+        if not ca.exists():
+            return OperationResult(
+                success=False,
+                message=f"CA not found: {cert_domain}/{cert_ca_name}"
+            )
+
+        # Get the store directory and manager
+        store_dir = CAService.get_ca_store_dir(cert_domain, cert_ca_name)
+        manager = CertificateManager(store_dir)
+
+        # Generate P12
+        cert_path = cert.get("cert_path")
+        return manager.generate_p12(
+            cert=cert_path,
+            ca=ca,
+            company=company,
+        )
+
+    @classmethod
+    def generate_vpn_bundle(
+        cls,
+        cn: str,
+        target_os: str,
+        domain: str | None = None,
+        ca_name: str | None = None,
+        vpn_gateway: str | None = None,
+    ) -> tuple[io.BytesIO, str] | None:
+        """Generate a VPN setup bundle (ZIP) for a certificate.
+
+        Args:
+            cn: Certificate Common Name or path.
+            target_os: Target OS ("linux", "mac", "windows").
+            domain: Optional domain filter.
+            ca_name: Optional CA name filter.
+            vpn_gateway: VPN gateway address (defaults to config).
+
+        Returns:
+            Tuple of (BytesIO with ZIP data, filename) or None on error.
+        """
+        # Get certificate info
+        cert = cls.get_certificate(cn, domain=domain, ca_name=ca_name)
+        if not cert:
+            return None
+
+        # Get P12 path - generate if needed
+        p12_path = cert.get("p12_path")
+        p12_password = cert.get("p12_password")
+
+        if not p12_path or not Path(p12_path).exists():
+            # Try to generate P12
+            result = cls.generate_p12(
+                cn=cn,
+                domain=domain,
+                ca_name=ca_name,
+                company=cert.get("subject_o", "Unknown"),
+            )
+            if result.success:
+                p12_path = result.data.get("p12_path")
+                p12_password = result.data.get("p12_password")
+            else:
+                return None
+
+        if not p12_path or not Path(p12_path).exists():
+            return None
+
+        # Get VPN gateway from config or parameter
+        if not vpn_gateway:
+            try:
+                vpn_gateway = current_app.config.get("VPN_GATEWAY", "vpn.example.com")
+            except RuntimeError:
+                vpn_gateway = "vpn.example.com"
+
+        # Get CN for filenames
+        cert_cn = cert.get("subject_cn") or cert.get("cn", cn)
+        safe_cn = cert_cn.replace("@", "-").replace(".", "-")
+
+        # Template context
+        context = {
+            "cn": cert_cn,
+            "p12_filename": Path(p12_path).name,
+            "p12_password": p12_password or "unknown",
+            "vpn_gateway": vpn_gateway,
+        }
+
+        # Get template directory
+        template_dir = Path(__file__).parent.parent / "templates" / "guides"
+
+        # Create ZIP in memory
+        zip_buffer = io.BytesIO()
+        with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zf:
+            # Add P12 file
+            zf.write(p12_path, Path(p12_path).name)
+
+            # Add OS-specific guide
+            if target_os == "linux":
+                # Add setup guide
+                guide_template = (template_dir / "linux-vpn-setup.md.j2").read_text()
+                guide_content = render_template_string(guide_template, **context)
+                zf.writestr("VPN-Setup-Guide.md", guide_content)
+
+                # Add setup script
+                script_template = (template_dir / "vpn-setup.sh.j2").read_text()
+                script_content = render_template_string(script_template, **context)
+                zf.writestr("vpn-setup.sh", script_content)
+
+                filename = f"vpn-{safe_cn}-linux.zip"
+
+            elif target_os == "mac":
+                guide_template = (template_dir / "mac-vpn-setup.md.j2").read_text()
+                guide_content = render_template_string(guide_template, **context)
+                zf.writestr("VPN-Setup-Guide.md", guide_content)
+                filename = f"vpn-{safe_cn}-mac.zip"
+
+            elif target_os == "windows":
+                guide_template = (template_dir / "windows-vpn-setup.md.j2").read_text()
+                guide_content = render_template_string(guide_template, **context)
+                zf.writestr("VPN-Setup-Guide.md", guide_content)
+                filename = f"vpn-{safe_cn}-windows.zip"
+
+            else:
+                return None
+
+        zip_buffer.seek(0)
+        return zip_buffer, filename

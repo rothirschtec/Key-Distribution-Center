@@ -82,14 +82,16 @@ def revoke_certificate(cn: str):
 
 @api_bp.route("/certificates/<cn>/reissue", methods=["POST"])
 def reissue_certificate(cn: str):
-    """Reissue a certificate (revoke, recreate, transfer).
+    """Reissue a certificate (delete old, create new with same CN).
 
     Args:
         cn: Certificate Common Name.
 
     Request body (optional):
         {
-            "cert_path": "string (optional, full path to cert)"
+            "cert_path": "string (optional, full path to cert)",
+            "domain": "string (required for multi-tenant)",
+            "ca_name": "string (required for multi-tenant)"
         }
 
     Returns:
@@ -98,14 +100,22 @@ def reissue_certificate(cn: str):
     data = request.get_json() or {}
 
     cert_path = data.get("cert_path")
+    domain = data.get("domain")
+    ca_name = data.get("ca_name")
+
     if not cert_path:
         cert_path = f"STORE/certs/{cn}.pem"
 
-    result = TransferService.reissue_certificate(cert_path)
+    result = TransferService.reissue_certificate(
+        cert_path=cert_path,
+        domain=domain,
+        ca_name=ca_name,
+    )
 
     if result.success:
         return jsonify({
             "message": result.message,
+            "data": result.data,
             "output": result.output,
         })
     else:

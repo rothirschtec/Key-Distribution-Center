@@ -1,7 +1,8 @@
 """Transfer service layer for the KDC web application.
 
 This service wraps the existing shell scripts for certificate transfer,
-revocation, and reissue operations.
+revocation, and reissue operations. Also provides Python-native reissue
+for multi-tenant mode.
 """
 
 from __future__ import annotations
@@ -17,7 +18,9 @@ _scripts_dir = Path(__file__).resolve().parent.parent.parent / "central" / "scri
 if str(_scripts_dir) not in sys.path:
     sys.path.insert(0, str(_scripts_dir))
 
-from kdc import OperationResult
+from kdc import OperationResult, CA, CertificateManager
+
+from .ca_service import CAService
 
 
 class TransferService:
@@ -159,17 +162,68 @@ class TransferService:
         return cls._run_script("cert-revoke-remove.sh", [cert_path])
 
     @classmethod
-    def reissue_certificate(cls, cert_path: str) -> OperationResult:
-        """Reissue a certificate (revoke, recreate, transfer).
+    def reissue_certificate(
+        cls,
+        cert_path: str,
+        domain: str | None = None,
+        ca_name: str | None = None,
+    ) -> OperationResult:
+        """Reissue a certificate (delete old, create new with same CN).
 
-        This calls the cert-reissue.sh script.
+        For multi-tenant mode, uses Python-native reissue.
+        For single-tenant, falls back to shell script.
 
         Args:
             cert_path: Path to the certificate file.
+            domain: CA domain (required for multi-tenant).
+            ca_name: CA name (required for multi-tenant).
 
         Returns:
             OperationResult with success status.
         """
+        # Use Python implementation for multi-tenant mode
+        if CAService.is_multi_tenant() and domain and ca_name:
+            cert_path_obj = Path(cert_path)
+
+            if not cert_path_obj.exists():
+                return OperationResult(
+                    success=False,
+                    message=f"Certificate not found: {cert_path}"
+                )
+
+            # Get the CA
+            ca = CAService.get_ca_object(ca_name, domain)
+            if not ca.exists():
+                return OperationResult(
+                    success=False,
+                    message=f"CA not found: {domain}/{ca_name}. "
+                            f"Expected cert at {ca.cert_path}, key at {ca.key_path}"
+                )
+
+            # Get the store directory for this CA
+            store_dir = CAService.get_ca_store_dir(domain, ca_name)
+            manager = CertificateManager(store_dir)
+
+            # Get lifetime from config
+            try:
+                lifetime = current_app.config.get("DEFAULT_CERT_LIFETIME", 365)
+            except RuntimeError:
+                lifetime = 365
+
+            # Reissue the certificate
+            result = manager.reissue(cert_path_obj, ca, lifetime=lifetime)
+
+            # Add debug info
+            if result.success:
+                result.data["debug"] = {
+                    "ca_cert_used": str(ca.cert_path),
+                    "ca_key_used": str(ca.key_path),
+                    "store_dir": str(store_dir),
+                }
+
+            return result
+
+        # Fall back to shell script for single-tenant mode
         scripts_dir = cls.get_scripts_dir()
 
         if not cert_path.startswith("STORE/"):

@@ -1,0 +1,152 @@
+# Linux VPN Setup Guide - IKEv2 with X.509 Certificate
+
+## Certificate Information
+
+- **Common Name (CN):** {{ cn }}
+- **P12 File:** {{ p12_filename }}
+- **P12 Password:** {{ p12_password }}
+
+## Option 1: GNOME Network Manager (GUI)
+
+### Prerequisites
+
+Install required packages:
+
+```bash
+sudo apt install network-manager-strongswan libcharon-extra-plugins
+```
+
+### Import Certificate
+
+1. Open **Settings** → **Network**
+2. Click **+** next to VPN
+3. Select **IPsec/IKEv2 (strongswan)**
+4. Configure:
+   - **Name:** {{ cn }} VPN
+   - **Gateway:** {{ vpn_gateway }}
+   - **Authentication:** Certificate
+   - **Certificate:** Import `{{ p12_filename }}`
+   - **Password:** Use the P12 password above
+5. Under **Options**, ensure:
+   - Request inner IP address: ✓
+   - Enforce UDP encapsulation: ✓
+6. Click **Add**
+
+### Connect
+
+Click the VPN toggle in Settings or use the network indicator in the top bar.
+
+---
+
+## Option 2: strongSwan CLI (Recommended for Servers)
+
+### Installation
+
+Run the included setup script:
+
+```bash
+chmod +x vpn-setup.sh
+sudo ./vpn-setup.sh
+```
+
+Or manually:
+
+```bash
+sudo apt install strongswan libcharon-extra-plugins
+```
+
+### Manual Configuration
+
+1. **Extract P12 certificate:**
+
+```bash
+# Extract CA certificate
+openssl pkcs12 -in {{ p12_filename }} -cacerts -nokeys -out /etc/swanctl/x509ca/ca.pem -password pass:{{ p12_password }}
+
+# Extract client certificate
+openssl pkcs12 -in {{ p12_filename }} -clcerts -nokeys -out /etc/swanctl/x509/{{ cn }}.pem -password pass:{{ p12_password }}
+
+# Extract private key
+openssl pkcs12 -in {{ p12_filename }} -nocerts -nodes -out /etc/swanctl/private/{{ cn }}.key -password pass:{{ p12_password }}
+chmod 600 /etc/swanctl/private/{{ cn }}.key
+```
+
+2. **Create swanctl configuration** (`/etc/swanctl/conf.d/{{ cn }}.conf`):
+
+```ini
+connections {
+    {{ cn | replace('.', '-') | replace('@', '-') }} {
+        remote_addrs = {{ vpn_gateway }}
+        vips = 0.0.0.0
+
+        local {
+            auth = pubkey
+            certs = {{ cn }}.pem
+        }
+
+        remote {
+            auth = pubkey
+            id = {{ vpn_gateway }}
+        }
+
+        children {
+            {{ cn | replace('.', '-') | replace('@', '-') }} {
+                remote_ts = 0.0.0.0/0
+                start_action = trap
+            }
+        }
+    }
+}
+```
+
+3. **Load configuration:**
+
+```bash
+sudo swanctl --load-all
+```
+
+4. **Connect:**
+
+```bash
+sudo swanctl -i -c {{ cn | replace('.', '-') | replace('@', '-') }}
+```
+
+### Using the systemd Service
+
+The included `vpn-setup.sh` script creates a systemd service for easy management:
+
+```bash
+# Start VPN
+sudo systemctl start strongswan-{{ cn | replace('.', '-') | replace('@', '-') }}
+
+# Stop VPN
+sudo systemctl stop strongswan-{{ cn | replace('.', '-') | replace('@', '-') }}
+
+# Enable on boot
+sudo systemctl enable strongswan-{{ cn | replace('.', '-') | replace('@', '-') }}
+
+# Check status
+sudo systemctl status strongswan-{{ cn | replace('.', '-') | replace('@', '-') }}
+```
+
+---
+
+## Troubleshooting
+
+### Check Connection Status
+
+```bash
+sudo swanctl -l
+```
+
+### View Logs
+
+```bash
+sudo journalctl -u strongswan -f
+```
+
+### Common Issues
+
+1. **Certificate not trusted:** Ensure the CA certificate is in `/etc/swanctl/x509ca/`
+2. **Connection timeout:** Check firewall allows UDP 500 and 4500
+3. **Authentication failed:** Verify P12 password and certificate paths

@@ -1,0 +1,197 @@
+# Windows VPN Setup Guide - IKEv2 with X.509 Certificate
+
+## Certificate Information
+
+- **Common Name (CN):** {{ cn }}
+- **P12 File:** {{ p12_filename }}
+- **P12 Password:** {{ p12_password }}
+- **VPN Gateway:** {{ vpn_gateway }}
+
+---
+
+## Step 1: Import Certificate
+
+### Method A: Double-Click Import (Recommended)
+
+1. **Double-click** the `{{ p12_filename }}` file
+2. Certificate Import Wizard opens
+3. Select **Current User** → Click **Next**
+4. File path should be pre-filled → Click **Next**
+5. Enter password: `{{ p12_password }}`
+6. Check ✓ **Mark this key as exportable** (optional)
+7. Check ✓ **Include all extended properties**
+8. Click **Next**
+9. Select **Automatically select the certificate store**
+10. Click **Next** → **Finish**
+11. Click **OK** on success message
+
+### Method B: Microsoft Management Console (MMC)
+
+1. Press `Win + R`, type `mmc`, press Enter
+2. **File** → **Add/Remove Snap-in**
+3. Select **Certificates** → **Add**
+4. Choose **My user account** → **Finish** → **OK**
+5. Expand **Certificates - Current User** → **Personal** → **Certificates**
+6. Right-click → **All Tasks** → **Import...**
+7. Follow the wizard as in Method A
+
+---
+
+## Step 2: Verify Certificate Installation
+
+1. Press `Win + R`, type `certmgr.msc`, press Enter
+2. Navigate to **Personal** → **Certificates**
+3. You should see a certificate for `{{ cn }}`
+4. Double-click to verify:
+   - **Issued to:** {{ cn }}
+   - **You have a private key that corresponds to this certificate**
+
+### Trust the CA Certificate
+
+1. In certmgr.msc, check **Trusted Root Certification Authorities** → **Certificates**
+2. If the CA certificate is not there:
+   - Find it in **Intermediate Certification Authorities**
+   - Right-click → **Cut**
+   - Navigate to **Trusted Root Certification Authorities** → **Certificates**
+   - Right-click → **Paste**
+
+---
+
+## Step 3: Create VPN Connection
+
+### Windows 10
+
+1. **Settings** → **Network & Internet** → **VPN**
+2. Click **Add a VPN connection**
+3. Configure:
+
+| Setting | Value |
+|---------|-------|
+| **VPN provider** | Windows (built-in) |
+| **Connection name** | {{ cn }} VPN |
+| **Server name or address** | {{ vpn_gateway }} |
+| **VPN type** | IKEv2 |
+| **Type of sign-in info** | Certificate |
+
+4. Click **Save**
+
+### Windows 11
+
+1. **Settings** → **Network & internet** → **VPN**
+2. Click **Add VPN**
+3. Configure same settings as Windows 10
+4. Click **Save**
+
+---
+
+## Step 4: Configure Advanced Settings
+
+1. Open **Control Panel** → **Network and Sharing Center**
+2. Click **Change adapter settings** (left sidebar)
+3. Right-click **{{ cn }} VPN** → **Properties**
+4. Go to **Security** tab:
+   - **Type of VPN:** IKEv2
+   - **Data encryption:** Require encryption
+   - **Authentication:** Use machine certificates
+5. Go to **Networking** tab:
+   - Uncheck **Internet Protocol Version 6 (TCP/IPv6)** if not needed
+6. Click **OK**
+
+### Select Specific Certificate (if multiple exist)
+
+1. In VPN adapter **Properties** → **Security** tab
+2. Click **Advanced settings** (if available)
+3. Under **Authentication**, select the certificate for `{{ cn }}`
+
+---
+
+## Step 5: Connect to VPN
+
+### From Settings
+
+1. **Settings** → **Network & Internet** → **VPN**
+2. Click **{{ cn }} VPN**
+3. Click **Connect**
+
+### From System Tray
+
+1. Click the network icon in system tray
+2. Click **{{ cn }} VPN**
+3. Click **Connect**
+
+### From Command Line (PowerShell)
+
+```powershell
+# Connect
+rasdial "{{ cn }} VPN"
+
+# Disconnect
+rasdial "{{ cn }} VPN" /disconnect
+
+# Check status
+rasdial
+```
+
+### Using PowerShell VPN Cmdlets
+
+```powershell
+# Connect
+Connect-VpnConnection -Name "{{ cn }} VPN"
+
+# Disconnect
+Disconnect-VpnConnection -Name "{{ cn }} VPN"
+
+# Get VPN status
+Get-VpnConnection -Name "{{ cn }} VPN"
+```
+
+---
+
+## Troubleshooting
+
+### "The certificate chain was issued by an authority that is not trusted"
+
+1. Import the CA certificate to **Trusted Root Certification Authorities**
+2. See Step 2 above
+
+### "IKE authentication credentials are unacceptable"
+
+1. Verify the certificate is in the **Personal** store
+2. Ensure the private key was imported (check certificate details)
+3. Try re-importing the P12 file
+
+### "The network connection between your computer and the VPN server could not be established"
+
+1. Check firewall allows outbound UDP 500 and 4500
+2. Verify the VPN gateway address is correct
+3. Try connecting from a different network
+
+### "Policy match error"
+
+The server and client IKEv2 proposals don't match. Contact your administrator.
+
+### View Connection Logs
+
+1. Press `Win + R`, type `eventvwr.msc`
+2. Navigate to: **Applications and Services Logs** → **Microsoft** → **Windows** → **VPN-Client**
+3. Or check: **Windows Logs** → **Application** (filter for RasClient)
+
+### Reset VPN Connection
+
+```powershell
+# Remove and recreate
+Remove-VpnConnection -Name "{{ cn }} VPN" -Force
+Add-VpnConnection -Name "{{ cn }} VPN" -ServerAddress "{{ vpn_gateway }}" -TunnelType Ikev2 -AuthenticationMethod MachineCertificate -EncryptionLevel Required
+```
+
+---
+
+## Quick Reference
+
+| Action | Method |
+|--------|--------|
+| Connect | Settings → VPN → Connect |
+| Disconnect | Settings → VPN → Disconnect |
+| Status | Settings → VPN (shows Connected/Disconnected) |
+| Logs | Event Viewer → VPN-Client |
+| Certificate Store | certmgr.msc |

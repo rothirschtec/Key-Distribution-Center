@@ -14,15 +14,15 @@ if [ -z $1 ]; then
 else
 
     # Revoke
-    ./cert-revoke-remove $1
+    ./cert-revoke-remove.sh $1
 
     # Recreate
     configs=${1##*/}
     configs=${configs%*.pem}
-    ./cert-create CONFIGS/${configs}.configs
+    ./cert-create.sh CONFIGS/${configs}.configs
 
     # Transfer
-    ./cert-transfer $1
+    ./cert-transfer.sh $1
 
     exit 0
 

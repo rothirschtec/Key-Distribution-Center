@@ -11,6 +11,8 @@ services:
       - ./CAs:/app/CAs
       # Mount scripts for shell script operations
       - ./central/scripts:/app/central/scripts
+      # Mount webapp for live code updates (remove in production)
+      - ./webapp:/app/webapp:ro
       # Mount SSH keys for certificate transfer (read-only)
       - ~/.ssh:/root/.ssh:ro
     environment:
@@ -22,7 +24,7 @@ services:
       - DEFAULT_CA_KEY_LENGTH=${DEFAULT_CA_KEY_LENGTH:-4096}
       - DEFAULT_CA_LIFETIME=${DEFAULT_CA_LIFETIME:-3650}
       - DEFAULT_CERT_KEY_LENGTH=${DEFAULT_CERT_KEY_LENGTH:-3072}
-      - DEFAULT_CERT_LIFETIME=${DEFAULT_CERT_LIFETIME:-181}
+      - DEFAULT_CERT_LIFETIME=${DEFAULT_CERT_LIFETIME:-365}
     restart: unless-stopped
 
   # Development service with hot reload

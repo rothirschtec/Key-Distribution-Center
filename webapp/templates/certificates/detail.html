@@ -42,6 +42,29 @@
         <dd><code>{{ cert.key_path }}</code></dd>
         {% endif %}
 
+        <dt>P12 Bundle</dt>
+        <dd>
+            {% if cert.p12_path %}
+            <code>{{ cert.p12_path }}</code>
+            <a href="{{ url_for('web.download_p12', cn=cert.subject_cn or cert.cn) }}" class="btn btn-small btn-primary" style="margin-left: 10px;">Download P12</a>
+            {% else %}
+            <span style="color: #666;">Not generated</span>
+            <form method="POST" action="{{ url_for('web.generate_p12', cn=cert.subject_cn or cert.cn) }}" class="inline-form" style="display: inline;">
+                <button type="submit" class="btn btn-small btn-secondary" style="margin-left: 10px;">Generate P12</button>
+            </form>
+            {% endif %}
+        </dd>
+
+        {% if cert.p12_password %}
+        <dt>P12 Password</dt>
+        <dd>
+            <code id="p12-password" style="display: none;">{{ cert.p12_password }}</code>
+            <span id="p12-password-hidden">••••••••••••••••••••••</span>
+            <button type="button" class="btn btn-small" onclick="togglePassword()">Show/Hide</button>
+            <button type="button" class="btn btn-small" onclick="copyPassword()">Copy</button>
+        </dd>
+        {% endif %}
+
         <dt>Status</dt>
         <dd>
             {% if cert.is_expired %}
@@ -51,6 +74,28 @@
             {% endif %}
         </dd>
     </dl>
+</div>
+
+<div class="section">
+    <h2>VPN Setup Bundles</h2>
+    <p style="margin-bottom: 15px; color: #666;">Download a ZIP archive containing the P12 certificate and setup instructions for your operating system.</p>
+    <div class="action-buttons">
+        <a href="{{ url_for('web.download_vpn_bundle', cn=cert.subject_cn or cert.cn, target_os='linux') }}"
+           class="btn btn-primary" style="margin-right: 10px;">
+            <span style="margin-right: 5px;">&#128039;</span> Linux Bundle
+        </a>
+        <a href="{{ url_for('web.download_vpn_bundle', cn=cert.subject_cn or cert.cn, target_os='mac') }}"
+           class="btn btn-primary" style="margin-right: 10px;">
+            <span style="margin-right: 5px;">&#63743;</span> macOS Bundle
+        </a>
+        <a href="{{ url_for('web.download_vpn_bundle', cn=cert.subject_cn or cert.cn, target_os='windows') }}"
+           class="btn btn-primary">
+            <span style="margin-right: 5px;">&#128187;</span> Windows Bundle
+        </a>
+    </div>
+    <p style="margin-top: 15px; font-size: 0.9em; color: #888;">
+        Each bundle includes: P12 certificate, setup guide, and (for Linux) an automated installation script.
+    </p>
 </div>
 
 <div class="section">
@@ -92,4 +137,25 @@
     <pre class="code-block">{{ cert.raw_output }}</pre>
 </div>
 {% endif %}
+
+<script>
+function togglePassword() {
+    var pw = document.getElementById('p12-password');
+    var hidden = document.getElementById('p12-password-hidden');
+    if (pw.style.display === 'none') {
+        pw.style.display = 'inline';
+        hidden.style.display = 'none';
+    } else {
+        pw.style.display = 'none';
+        hidden.style.display = 'inline';
+    }
+}
+
+function copyPassword() {
+    var pw = document.getElementById('p12-password').textContent;
+    navigator.clipboard.writeText(pw).then(function() {
+        alert('Password copied to clipboard!');
+    });
+}
+</script>
 {% endblock %}

@@ -1,0 +1,147 @@
+# macOS VPN Setup Guide - IKEv2 with X.509 Certificate
+
+## Certificate Information
+
+- **Common Name (CN):** {{ cn }}
+- **P12 File:** {{ p12_filename }}
+- **P12 Password:** {{ p12_password }}
+- **VPN Gateway:** {{ vpn_gateway }}
+
+---
+
+## Step 1: Import Certificate into Keychain
+
+1. **Double-click** the `{{ p12_filename }}` file
+2. Keychain Access will open and prompt for the P12 password
+3. Enter: `{{ p12_password }}`
+4. When prompted for your Mac password, enter it to allow the import
+5. The certificate will be imported into your **login** keychain
+
+### Verify Import
+
+1. Open **Keychain Access** (Applications → Utilities → Keychain Access)
+2. Select **login** keychain on the left
+3. Select **My Certificates** category
+4. You should see a certificate for `{{ cn }}`
+
+---
+
+## Step 2: Trust the CA Certificate
+
+1. In Keychain Access, find the CA certificate (the issuer of your certificate)
+2. Double-click the CA certificate
+3. Expand the **Trust** section
+4. Set **When using this certificate** to **Always Trust**
+5. Close the window and enter your Mac password to confirm
+
+---
+
+## Step 3: Create VPN Connection
+
+### Using System Preferences (macOS Monterey and earlier)
+
+1. Open **System Preferences** → **Network**
+2. Click the **+** button at bottom left
+3. Configure:
+   - **Interface:** VPN
+   - **VPN Type:** IKEv2
+   - **Service Name:** {{ cn }} VPN
+4. Click **Create**
+
+### Using System Settings (macOS Ventura and later)
+
+1. Open **System Settings** → **VPN**
+2. Click **Add VPN Configuration** → **IKEv2**
+3. Configure:
+   - **Display Name:** {{ cn }} VPN
+
+---
+
+## Step 4: Configure VPN Settings
+
+Enter the following settings:
+
+| Setting | Value |
+|---------|-------|
+| **Server Address** | {{ vpn_gateway }} |
+| **Remote ID** | {{ vpn_gateway }} |
+| **Local ID** | {{ cn }} |
+| **User Authentication** | Certificate |
+| **Certificate** | Select `{{ cn }}` from dropdown |
+
+### Additional Settings (click "Show All")
+
+- **Send All Traffic:** ✓ (recommended)
+- **Proxy:** None (unless required)
+
+Click **Apply** or **Done**
+
+---
+
+## Step 5: Connect to VPN
+
+### From Menu Bar
+
+1. Click the VPN icon in the menu bar (if enabled)
+2. Select **{{ cn }} VPN**
+3. Click **Connect**
+
+### From System Preferences/Settings
+
+1. Go to **Network** or **VPN** settings
+2. Select **{{ cn }} VPN**
+3. Click **Connect**
+
+### From Terminal
+
+```bash
+# Connect
+networksetup -connectpppoeservice "{{ cn }} VPN"
+
+# Disconnect
+networksetup -disconnectpppoeservice "{{ cn }} VPN"
+
+# Check status
+scutil --nc status "{{ cn }} VPN"
+```
+
+---
+
+## Troubleshooting
+
+### Certificate Not Showing in Dropdown
+
+1. Ensure the certificate was imported to the **login** keychain
+2. Check that both the certificate AND private key were imported
+3. Try importing the P12 file again
+
+### Connection Fails Immediately
+
+1. Verify the CA certificate is trusted (see Step 2)
+2. Check that the Remote ID matches the server's certificate
+
+### "No matching peer config found"
+
+The Remote ID must match exactly what the server expects. Try:
+- Using the server's IP address as Remote ID
+- Using the server's FQDN as Remote ID
+
+### View Connection Logs
+
+Open **Console.app** and filter for `nesessionmanager` or `racoon`
+
+Or use Terminal:
+```bash
+log show --predicate 'subsystem == "com.apple.networkextension"' --last 5m
+```
+
+---
+
+## Quick Reference
+
+| Action | Method |
+|--------|--------|
+| Connect | Menu bar VPN icon → Connect |
+| Disconnect | Menu bar VPN icon → Disconnect |
+| Status | System Settings → VPN |
+| Logs | Console.app or `log show` command |
