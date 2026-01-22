@@ -55,6 +55,105 @@ def run(cmd: list[str], capture: bool = False, **kwargs) -> subprocess.Completed
         raise RuntimeError(f"Command failed: {' '.join(cmd)}\n{exc}")
 
 
+def has_ipsec_pki() -> bool:
+    """Check if ipsec pki command is available."""
+    try:
+        subprocess.run(["ipsec", "pki", "--help"], capture_output=True, check=False)
+        return True
+    except FileNotFoundError:
+        return False
+
+
+def get_cert_info_openssl(cert_path: str | Path) -> dict[str, Any]:
+    """Get certificate info using openssl (fallback when ipsec pki unavailable).
+
+    Args:
+        cert_path: Path to the certificate file.
+
+    Returns:
+        Dictionary with parsed certificate information.
+    """
+    cert_path = Path(cert_path)
+    info: dict[str, Any] = {}
+
+    try:
+        # Get subject
+        result = subprocess.run(
+            ["openssl", "x509", "-in", str(cert_path), "-noout", "-subject"],
+            capture_output=True, text=True, check=True
+        )
+        subject_line = result.stdout.strip()
+        info["subject"] = subject_line.replace("subject=", "").strip()
+
+        # Parse subject components
+        for part in info["subject"].split(","):
+            part = part.strip()
+            if part.startswith("CN =") or part.startswith("CN="):
+                info["subject_cn"] = part.split("=", 1)[1].strip()
+            elif part.startswith("O =") or part.startswith("O="):
+                info["subject_o"] = part.split("=", 1)[1].strip()
+            elif part.startswith("C =") or part.startswith("C="):
+                info["subject_c"] = part.split("=", 1)[1].strip()
+
+        # Get issuer
+        result = subprocess.run(
+            ["openssl", "x509", "-in", str(cert_path), "-noout", "-issuer"],
+            capture_output=True, text=True, check=True
+        )
+        info["issuer"] = result.stdout.strip().replace("issuer=", "").strip()
+
+        # Get dates
+        result = subprocess.run(
+            ["openssl", "x509", "-in", str(cert_path), "-noout", "-dates"],
+            capture_output=True, text=True, check=True
+        )
+        for line in result.stdout.strip().split("\n"):
+            if line.startswith("notBefore="):
+                info["not_before"] = line.replace("notBefore=", "").strip()
+            elif line.startswith("notAfter="):
+                info["not_after"] = line.replace("notAfter=", "").strip()
+                # Parse expiration date
+                try:
+                    # Format: "Jan 22 08:52:05 2026 GMT"
+                    not_after_str = info["not_after"].replace(" GMT", "")
+                    not_after_dt = datetime.strptime(not_after_str, "%b %d %H:%M:%S %Y")
+                    info["not_after_dt"] = not_after_dt.isoformat()
+                    info["is_expired"] = not_after_dt < datetime.now()
+                except (ValueError, KeyError):
+                    info["is_expired"] = None
+
+        # Get serial
+        result = subprocess.run(
+            ["openssl", "x509", "-in", str(cert_path), "-noout", "-serial"],
+            capture_output=True, text=True, check=True
+        )
+        info["serial"] = result.stdout.strip().replace("serial=", "").strip()
+
+        # Get public key info
+        result = subprocess.run(
+            ["openssl", "x509", "-in", str(cert_path), "-noout", "-text"],
+            capture_output=True, text=True, check=True
+        )
+        info["raw_output"] = result.stdout
+        # Parse key size
+        key_match = re.search(r"Public-Key:\s*\((\d+)\s*bit\)", result.stdout)
+        if key_match:
+            info["pubkey_bits"] = int(key_match.group(1))
+        # Check for RSA
+        if "rsaEncryption" in result.stdout:
+            info["pubkey_type"] = "RSA"
+
+        # Check if CA
+        info["is_ca"] = "CA:TRUE" in result.stdout
+
+        return info
+
+    except subprocess.CalledProcessError as exc:
+        return {"error": str(exc), "cert_path": str(cert_path)}
+    except Exception as exc:
+        return {"error": str(exc), "cert_path": str(cert_path)}
+
+
 class CA:
     """Represents a certificate authority stored under ``STORE``."""
 

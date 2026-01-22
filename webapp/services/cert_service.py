@@ -17,7 +17,7 @@ _scripts_dir = Path(__file__).resolve().parent.parent.parent / "central" / "scri
 if str(_scripts_dir) not in sys.path:
     sys.path.insert(0, str(_scripts_dir))
 
-from kdc import CA, CertificateManager, OperationResult, parse_cert_info, run
+from kdc import CA, CertificateManager, OperationResult, parse_cert_info, run, get_cert_info_openssl, has_ipsec_pki
 
 from .ca_service import CAService
 
@@ -120,11 +120,17 @@ class CertificateService:
             Dictionary with certificate information, or None on error.
         """
         try:
-            result = run(
-                ["ipsec", "pki", "--print", "--in", str(cert_path)],
-                capture=True
-            )
-            info = parse_cert_info(result.stdout)
+            # Try ipsec pki first, fall back to openssl
+            if has_ipsec_pki():
+                result = run(
+                    ["ipsec", "pki", "--print", "--in", str(cert_path)],
+                    capture=True
+                )
+                info = parse_cert_info(result.stdout)
+            else:
+                # Use openssl fallback
+                info = get_cert_info_openssl(cert_path)
+
             info["cert_path"] = str(cert_path)
             info["domain"] = domain
             info["ca_name"] = ca_name
