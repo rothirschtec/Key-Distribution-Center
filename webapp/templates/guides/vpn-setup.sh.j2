@@ -5,8 +5,12 @@
 set -e
 
 P12_FILE="{{ p12_filename }}"
-P12_PASSWORD="{{ p12_password }}"
 VPN_GATEWAY="{{ vpn_gateway }}"
+
+# Prompt for P12 password
+echo -n "Enter P12 password (provided by your administrator): "
+read -s P12_PASSWORD
+echo
 CN="{{ cn }}"
 CONN_NAME="{{ cn | replace('.', '-') | replace('@', '-') }}"
 

@@ -4,7 +4,7 @@
 
 - **Common Name (CN):** {{ cn }}
 - **P12 File:** {{ p12_filename }}
-- **P12 Password:** {{ p12_password }}
+- **P12 Password:** *Provided separately by your administrator*
 - **VPN Gateway:** {{ vpn_gateway }}
 
 ## Option 1: GNOME Network Manager (GUI)
@@ -25,29 +25,29 @@ GNOME Network Manager needs separate certificate and key files. Run these comman
 # Create a directory for the certificates
 mkdir -p ~/.config/vpn-certs
 
-# Extract the CA certificate
+# Extract the CA certificate (replace YOUR_P12_PASSWORD with the password from your administrator)
 openssl pkcs12 -in {{ p12_filename }} -cacerts -nokeys \
     -out ~/.config/vpn-certs/ca.pem \
-    -password pass:'{{ p12_password }}' -legacy 2>/dev/null || \
+    -password pass:'YOUR_P12_PASSWORD' -legacy 2>/dev/null || \
 openssl pkcs12 -in {{ p12_filename }} -cacerts -nokeys \
     -out ~/.config/vpn-certs/ca.pem \
-    -password pass:'{{ p12_password }}'
+    -password pass:'YOUR_P12_PASSWORD'
 
 # Extract your client certificate
 openssl pkcs12 -in {{ p12_filename }} -clcerts -nokeys \
     -out ~/.config/vpn-certs/{{ cn }}.crt \
-    -password pass:'{{ p12_password }}' -legacy 2>/dev/null || \
+    -password pass:'YOUR_P12_PASSWORD' -legacy 2>/dev/null || \
 openssl pkcs12 -in {{ p12_filename }} -clcerts -nokeys \
     -out ~/.config/vpn-certs/{{ cn }}.crt \
-    -password pass:'{{ p12_password }}'
+    -password pass:'YOUR_P12_PASSWORD'
 
 # Extract your private key (unencrypted with -nodes to avoid password prompts)
 openssl pkcs12 -in {{ p12_filename }} -nocerts -nodes \
     -out ~/.config/vpn-certs/{{ cn }}.key \
-    -password pass:'{{ p12_password }}' -legacy 2>/dev/null || \
+    -password pass:'YOUR_P12_PASSWORD' -legacy 2>/dev/null || \
 openssl pkcs12 -in {{ p12_filename }} -nocerts -nodes \
     -out ~/.config/vpn-certs/{{ cn }}.key \
-    -password pass:'{{ p12_password }}'
+    -password pass:'YOUR_P12_PASSWORD'
 
 # IMPORTANT: Secure the private key since it's unencrypted
 chmod 600 ~/.config/vpn-certs/{{ cn }}.key
@@ -120,14 +120,14 @@ sudo apt install strongswan libcharon-extra-plugins
 1. **Extract P12 certificate:**
 
 ```bash
-# Extract CA certificate
-openssl pkcs12 -in {{ p12_filename }} -cacerts -nokeys -out /etc/swanctl/x509ca/ca.pem -password pass:{{ p12_password }}
+# Extract CA certificate (replace YOUR_P12_PASSWORD with password from your administrator)
+openssl pkcs12 -in {{ p12_filename }} -cacerts -nokeys -out /etc/swanctl/x509ca/ca.pem -password pass:YOUR_P12_PASSWORD
 
 # Extract client certificate
-openssl pkcs12 -in {{ p12_filename }} -clcerts -nokeys -out /etc/swanctl/x509/{{ cn }}.pem -password pass:{{ p12_password }}
+openssl pkcs12 -in {{ p12_filename }} -clcerts -nokeys -out /etc/swanctl/x509/{{ cn }}.pem -password pass:YOUR_P12_PASSWORD
 
 # Extract private key
-openssl pkcs12 -in {{ p12_filename }} -nocerts -nodes -out /etc/swanctl/private/{{ cn }}.key -password pass:{{ p12_password }}
+openssl pkcs12 -in {{ p12_filename }} -nocerts -nodes -out /etc/swanctl/private/{{ cn }}.key -password pass:YOUR_P12_PASSWORD
 chmod 600 /etc/swanctl/private/{{ cn }}.key
 ```
 

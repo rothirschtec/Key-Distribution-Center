@@ -1,0 +1,228 @@
+{% extends "base.html" %}
+
+{% block title %}Settings: {{ domain }}/{{ ca_name }}{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>Settings: {{ domain }}/{{ ca_name }}</h1>
+    <a href="{{ url_for('web.settings') }}" class="btn btn-secondary">Back to Settings</a>
+</div>
+
+<div class="form-card">
+    <form method="POST" enctype="multipart/form-data">
+        <div class="form-section">
+            <h2>VPN Configuration</h2>
+
+            <div class="form-group">
+                <label for="vpn_gateway">VPN Gateway Address</label>
+                <input type="text" id="vpn_gateway" name="vpn_gateway"
+                       value="{{ settings.vpn_gateway }}"
+                       placeholder="e.g., vpn.example.com or 192.168.1.1">
+                <small>The VPN server address that will appear in setup guides for certificates issued by this CA.</small>
+            </div>
+        </div>
+
+        <div class="form-section">
+            <h2>SSH Transfer Settings</h2>
+            <p style="color: #666; margin-bottom: 15px;">
+                Configure SSH connection for transferring certificates to the IPsec gateway server.
+            </p>
+
+            <div class="form-row">
+                <div class="form-group" style="flex: 2;">
+                    <label for="ssh_host">SSH Host</label>
+                    <input type="text" id="ssh_host" name="ssh_host"
+                           value="{{ settings.ssh_host }}"
+                           placeholder="e.g., gateway.example.com or 192.168.1.1">
+                    <small>Hostname or IP address of the IPsec gateway server.</small>
+                </div>
+
+                <div class="form-group" style="flex: 1;">
+                    <label for="ssh_port">SSH Port</label>
+                    <input type="text" id="ssh_port" name="ssh_port"
+                           value="{{ settings.ssh_port or '22' }}"
+                           placeholder="22">
+                    <small>Default: 22</small>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label for="ssh_user">SSH User</label>
+                <input type="text" id="ssh_user" name="ssh_user"
+                       value="{{ settings.ssh_user or 'root' }}"
+                       placeholder="root">
+                <small>Username for SSH connection (usually root for IPsec configuration).</small>
+            </div>
+
+            <div class="form-group">
+                <label for="ssh_key">SSH Private Key</label>
+                {% if settings.has_ssh_key %}
+                <div class="ssh-key-status">
+                    <span class="badge badge-success">SSH Key Uploaded</span>
+                    <label class="checkbox-label" style="margin-left: 15px;">
+                        <input type="checkbox" name="delete_ssh_key" value="1">
+                        Delete existing key
+                    </label>
+                </div>
+                <small>Upload a new key to replace the existing one, or check the box to delete it.</small>
+                {% endif %}
+                <input type="file" id="ssh_key" name="ssh_key" accept=".pem,.key,*">
+                <small>Upload the private key file (e.g., id_rsa, id_ed25519) used to connect to the gateway server. The key will be stored securely with restricted permissions.</small>
+            </div>
+        </div>
+
+        <div class="form-section">
+            <h2>Company Information</h2>
+
+            <div class="form-group">
+                <label for="company_name">Company Name</label>
+                <input type="text" id="company_name" name="company_name"
+                       value="{{ settings.company_name }}"
+                       placeholder="e.g., Acme Corporation">
+                <small>Optional: Display name for this customer.</small>
+            </div>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="support_email">Support Email</label>
+                    <input type="email" id="support_email" name="support_email"
+                           value="{{ settings.support_email }}"
+                           placeholder="e.g., support@example.com">
+                    <small>Optional: Contact email for VPN support.</small>
+                </div>
+
+                <div class="form-group">
+                    <label for="support_phone">Support Phone</label>
+                    <input type="text" id="support_phone" name="support_phone"
+                           value="{{ settings.support_phone }}"
+                           placeholder="e.g., +43 1 234 5678">
+                    <small>Optional: Contact phone for VPN support.</small>
+                </div>
+            </div>
+        </div>
+
+        <div class="form-section">
+            <h2>Notes</h2>
+
+            <div class="form-group">
+                <label for="notes">Internal Notes</label>
+                <textarea id="notes" name="notes" rows="4"
+                          placeholder="Any internal notes about this CA or customer...">{{ settings.notes }}</textarea>
+                <small>Optional: Internal notes (not shown in guides).</small>
+            </div>
+        </div>
+
+        <div class="form-actions">
+            <button type="submit" class="btn btn-primary">Save Settings</button>
+            <a href="{{ url_for('web.settings') }}" class="btn btn-secondary">Cancel</a>
+        </div>
+    </form>
+</div>
+
+<style>
+.form-card {
+    background: #fff;
+    border-radius: 8px;
+    padding: 20px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.form-section {
+    margin-bottom: 30px;
+    padding-bottom: 20px;
+    border-bottom: 1px solid #eee;
+}
+
+.form-section:last-of-type {
+    border-bottom: none;
+}
+
+.form-section h2 {
+    font-size: 1.2em;
+    margin-bottom: 15px;
+    color: #333;
+}
+
+.form-group {
+    margin-bottom: 20px;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 5px;
+    font-weight: 600;
+}
+
+.form-group input[type="text"],
+.form-group input[type="email"],
+.form-group input[type="file"],
+.form-group textarea {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 14px;
+    box-sizing: border-box;
+}
+
+.form-group input:focus,
+.form-group textarea:focus {
+    border-color: #e95420;
+    outline: none;
+}
+
+.form-group small {
+    display: block;
+    margin-top: 5px;
+    color: #666;
+    font-size: 12px;
+}
+
+.form-row {
+    display: flex;
+    gap: 20px;
+}
+
+.form-row .form-group {
+    flex: 1;
+}
+
+.form-actions {
+    margin-top: 20px;
+    padding-top: 20px;
+    border-top: 1px solid #eee;
+}
+
+.form-actions .btn {
+    margin-right: 10px;
+}
+
+.ssh-key-status {
+    display: flex;
+    align-items: center;
+    margin-bottom: 10px;
+    padding: 10px;
+    background: #f8f9fa;
+    border-radius: 4px;
+}
+
+.checkbox-label {
+    display: flex;
+    align-items: center;
+    font-weight: normal;
+    cursor: pointer;
+}
+
+.checkbox-label input {
+    margin-right: 5px;
+    width: auto;
+}
+
+@media (max-width: 768px) {
+    .form-row {
+        flex-direction: column;
+        gap: 0;
+    }
+}
+</style>
+{% endblock %}

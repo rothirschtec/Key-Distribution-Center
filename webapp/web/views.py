@@ -4,7 +4,7 @@ from pathlib import Path
 
 from flask import flash, redirect, render_template, request, send_file, url_for
 
-from ..services import CAService, CertificateService, TransferService
+from ..services import CAService, CertificateService, TransferService, SettingsService
 from . import web_bp
 
 
@@ -166,10 +166,19 @@ def transfer_certificate(cn: str):
         return redirect(url_for("web.list_certificates"))
 
     cert_path = cert.get("cert_path", f"STORE/certs/{cn}.pem")
-    result = TransferService.transfer_certificate(cert_path)
+    domain = cert.get("domain")
+    ca_name = cert.get("ca_name")
+
+    result = TransferService.transfer_certificate(
+        cert_path,
+        domain=domain,
+        ca_name=ca_name,
+    )
 
     if result.success:
-        flash("Certificate transferred successfully", "success")
+        transferred = result.data.get("transferred", [])
+        ssh_host = result.data.get("ssh_host", "gateway")
+        flash(f"Certificate transferred to {ssh_host}: {', '.join(transferred)}", "success")
     else:
         flash(f"Transfer failed: {result.message}", "error")
 
@@ -314,3 +323,60 @@ def download_vpn_bundle(cn: str, target_os: str):
         download_name=filename,
         mimetype="application/zip"
     )
+
+
+# Settings Views
+@web_bp.route("/settings")
+def settings():
+    """Settings overview - list all CAs with their settings."""
+    ca_settings = SettingsService.list_all_ca_settings()
+    return render_template("settings/list.html", ca_settings=ca_settings)
+
+
+@web_bp.route("/settings/<domain>/<ca_name>", methods=["GET", "POST"])
+def ca_settings(domain: str, ca_name: str):
+    """Edit settings for a specific CA."""
+    # Verify CA exists
+    ca = CAService.get_ca(domain, ca_name)
+    if ca is None:
+        flash(f"CA not found: {domain}/{ca_name}", "error")
+        return redirect(url_for("web.settings"))
+
+    if request.method == "POST":
+        settings = {
+            "vpn_gateway": request.form.get("vpn_gateway", "").strip(),
+            "ssh_host": request.form.get("ssh_host", "").strip(),
+            "ssh_port": request.form.get("ssh_port", "22").strip(),
+            "ssh_user": request.form.get("ssh_user", "root").strip(),
+            "company_name": request.form.get("company_name", "").strip(),
+            "support_email": request.form.get("support_email", "").strip(),
+            "support_phone": request.form.get("support_phone", "").strip(),
+            "notes": request.form.get("notes", "").strip(),
+        }
+
+        # Handle SSH key upload
+        ssh_key_file = request.files.get("ssh_key")
+        if ssh_key_file and ssh_key_file.filename:
+            ssh_key_content = ssh_key_file.read().decode("utf-8")
+            if ssh_key_content.strip():
+                if SettingsService.save_ssh_key(domain, ca_name, ssh_key_content):
+                    flash("SSH key uploaded successfully", "success")
+                else:
+                    flash("Failed to save SSH key", "error")
+
+        # Handle SSH key deletion
+        if request.form.get("delete_ssh_key") == "1":
+            if SettingsService.delete_ssh_key(domain, ca_name):
+                flash("SSH key deleted", "success")
+            else:
+                flash("Failed to delete SSH key", "error")
+
+        if SettingsService.save_ca_settings(domain, ca_name, settings):
+            flash(f"Settings saved for {domain}/{ca_name}", "success")
+        else:
+            flash(f"Failed to save settings for {domain}/{ca_name}", "error")
+
+        return redirect(url_for("web.settings"))
+
+    current_settings = SettingsService.get_ca_settings(domain, ca_name)
+    return render_template("settings/edit.html", domain=domain, ca_name=ca_name, settings=current_settings)

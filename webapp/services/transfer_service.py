@@ -109,33 +109,199 @@ class TransferService:
             )
 
     @classmethod
-    def transfer_certificate(cls, cert_path: str) -> OperationResult:
+    def transfer_certificate(
+        cls,
+        cert_path: str,
+        domain: str | None = None,
+        ca_name: str | None = None,
+    ) -> OperationResult:
         """Transfer a certificate to the IPSEC gateway.
 
-        This calls the cert-transfer.sh script.
+        Uses SSH settings from CA configuration if available,
+        otherwise falls back to cert-transfer.sh script.
 
         Args:
-            cert_path: Path to the certificate file (relative to scripts dir
-                or absolute).
+            cert_path: Path to the certificate file.
+            domain: CA domain (for SSH settings lookup).
+            ca_name: CA name (for SSH settings lookup).
 
         Returns:
             OperationResult with success status.
         """
-        # Ensure path is relative to scripts dir for the shell script
-        store_dir = cls.get_store_dir()
+        from .settings_service import SettingsService
+
+        # Try to use Python-native transfer with SSH settings
+        if domain and ca_name:
+            ssh_config = SettingsService.get_ssh_config(domain, ca_name)
+
+            if ssh_config.get("host") and ssh_config.get("key_path"):
+                return cls._transfer_with_ssh(cert_path, domain, ca_name, ssh_config)
+
+        # Fall back to shell script
         scripts_dir = cls.get_scripts_dir()
 
         if not cert_path.startswith("STORE/"):
-            # Try to make relative path
             cert_path_obj = Path(cert_path)
             if cert_path_obj.is_absolute():
                 try:
                     cert_path = str(cert_path_obj.relative_to(scripts_dir))
                 except ValueError:
-                    # Path not under scripts_dir, use as-is
                     pass
 
         return cls._run_script("cert-transfer.sh", [cert_path])
+
+    @classmethod
+    def _transfer_with_ssh(
+        cls,
+        cert_path: str,
+        domain: str,
+        ca_name: str,
+        ssh_config: dict,
+    ) -> OperationResult:
+        """Transfer certificate files using SSH with configured settings.
+
+        Args:
+            cert_path: Path to the certificate file.
+            domain: CA domain.
+            ca_name: CA name.
+            ssh_config: SSH configuration dict with host, port, user, key_path.
+
+        Returns:
+            OperationResult with success status.
+        """
+        cert_path_obj = Path(cert_path)
+        if not cert_path_obj.exists():
+            return OperationResult(
+                success=False,
+                message=f"Certificate not found: {cert_path}"
+            )
+
+        ssh_host = ssh_config["host"]
+        ssh_port = ssh_config.get("port", "22")
+        ssh_user = ssh_config.get("user", "root")
+        ssh_key = ssh_config.get("key_path")
+
+        # Build SSH options (ignore system ssh config to avoid permission issues in container)
+        ssh_opts = [
+            "-F", "/dev/null",  # Ignore system SSH config
+            "-o", "StrictHostKeyChecking=accept-new",
+            "-o", "BatchMode=yes",
+            "-o", "UserKnownHostsFile=/dev/null",
+            "-p", ssh_port,
+        ]
+        if ssh_key:
+            ssh_opts.extend(["-i", ssh_key])
+
+        ssh_target = f"{ssh_user}@{ssh_host}"
+
+        # Get the store directory for this CA
+        store_dir = CAService.get_ca_store_dir(domain, ca_name)
+
+        # Determine files to transfer
+        cert_basename = cert_path_obj.stem
+        files_to_transfer = []
+        transferred = []
+        errors = []
+
+        # Certificate file -> /etc/ipsec.d/certs/
+        files_to_transfer.append({
+            "src": cert_path_obj,
+            "dest": "/etc/ipsec.d/certs/",
+            "desc": "certificate"
+        })
+
+        # Private key -> /etc/ipsec.d/private/
+        key_path = store_dir / "private" / cert_path_obj.name
+        if key_path.exists():
+            files_to_transfer.append({
+                "src": key_path,
+                "dest": "/etc/ipsec.d/private/",
+                "desc": "private key"
+            })
+
+        # CA certificate -> /etc/ipsec.d/cacerts/
+        cacerts_dir = store_dir / "cacerts"
+        if cacerts_dir.exists():
+            for ca_cert in cacerts_dir.glob("*.pem"):
+                files_to_transfer.append({
+                    "src": ca_cert,
+                    "dest": "/etc/ipsec.d/cacerts/",
+                    "desc": "CA certificate"
+                })
+                break  # Only need one CA cert
+
+        # CRL -> /etc/ipsec.d/crls/
+        crls_dir = store_dir / "crls"
+        if crls_dir.exists():
+            for crl_file in crls_dir.glob("*.pem"):
+                files_to_transfer.append({
+                    "src": crl_file,
+                    "dest": "/etc/ipsec.d/crls/",
+                    "desc": "CRL"
+                })
+
+        # Transfer each file using rsync
+        for file_info in files_to_transfer:
+            src = file_info["src"]
+            dest = file_info["dest"]
+            desc = file_info["desc"]
+
+            if not src.exists():
+                continue
+
+            try:
+                rsync_cmd = [
+                    "rsync", "-az",
+                    "-e", f"ssh {' '.join(ssh_opts)}",
+                    str(src),
+                    f"{ssh_target}:{dest}"
+                ]
+
+                result = subprocess.run(
+                    rsync_cmd,
+                    capture_output=True,
+                    text=True,
+                    timeout=60
+                )
+
+                if result.returncode == 0:
+                    transferred.append(f"{desc}: {src.name}")
+                else:
+                    errors.append(f"{desc}: {result.stderr.strip()}")
+
+            except subprocess.TimeoutExpired:
+                errors.append(f"{desc}: transfer timed out")
+            except Exception as exc:
+                errors.append(f"{desc}: {exc}")
+
+        # Reload IPsec on the gateway
+        if transferred and not errors:
+            try:
+                reload_cmd = [
+                    "ssh", *ssh_opts,
+                    ssh_target,
+                    "ipsec reload || systemctl reload strongswan || true"
+                ]
+                subprocess.run(reload_cmd, capture_output=True, timeout=30)
+            except Exception:
+                pass  # Non-fatal if reload fails
+
+        if errors:
+            return OperationResult(
+                success=False,
+                message=f"Transfer errors: {'; '.join(errors)}",
+                data={"transferred": transferred, "errors": errors},
+                error="; ".join(errors)
+            )
+
+        return OperationResult(
+            success=True,
+            message=f"Certificate transferred to {ssh_host}",
+            data={
+                "transferred": transferred,
+                "ssh_host": ssh_host,
+            }
+        )
 
     @classmethod
     def revoke_certificate(cls, cert_path: str) -> OperationResult:

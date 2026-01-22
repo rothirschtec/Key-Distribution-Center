@@ -181,7 +181,7 @@ class CertificateService:
         """Get a specific certificate by CN.
 
         Args:
-            cn: Certificate Common Name (can be partial).
+            cn: Certificate Common Name.
             domain: Optional domain filter.
             ca_name: Optional CA name filter.
 
@@ -191,10 +191,34 @@ class CertificateService:
         # Search all certificates
         certs = cls.list_certificates(domain=domain, ca_name=ca_name)
 
+        # First pass: exact match on CN
         for cert in certs:
             cert_cn = cert.get("subject_cn") or cert.get("cn", "")
-            if cn in cert_cn or cn in cert.get("cert_path", ""):
+            if cn == cert_cn:
                 return cert
+
+        # Second pass: exact match on filename stem (without CA suffix)
+        for cert in certs:
+            cert_path = cert.get("cert_path", "")
+            if cert_path:
+                # Filename format: <cn>-<ca_name>.pem
+                filename = Path(cert_path).stem
+                # Check if cn matches the part before -<ca_name>
+                if filename.startswith(cn + "-") or filename == cn:
+                    return cert
+
+        # Third pass: partial match (fallback for legacy compatibility)
+        for cert in certs:
+            cert_cn = cert.get("subject_cn") or cert.get("cn", "")
+            cert_path = cert.get("cert_path", "")
+            # Only match if cn is a complete segment (not a substring of another name)
+            if cn in cert_cn:
+                # Avoid matching "rene.zingerle" in "rene.zingerle.phone"
+                # by checking if it's followed by nothing or a hyphen
+                idx = cert_cn.find(cn)
+                end_idx = idx + len(cn)
+                if end_idx == len(cert_cn) or cert_cn[end_idx] == '-':
+                    return cert
 
         return None
 
@@ -442,12 +466,18 @@ class CertificateService:
         if not p12_path or not Path(p12_path).exists():
             return None
 
-        # Get VPN gateway from config or parameter
+        # Get VPN gateway from CA settings or config
         if not vpn_gateway:
-            try:
-                vpn_gateway = current_app.config.get("VPN_GATEWAY", "vpn.example.com")
-            except RuntimeError:
-                vpn_gateway = "vpn.example.com"
+            from .settings_service import SettingsService
+            cert_domain = cert.get("domain")
+            cert_ca_name = cert.get("ca_name")
+            if cert_domain:
+                vpn_gateway = SettingsService.get_vpn_gateway(cert_domain, cert_ca_name)
+            else:
+                try:
+                    vpn_gateway = current_app.config.get("VPN_GATEWAY", "vpn.example.com")
+                except RuntimeError:
+                    vpn_gateway = "vpn.example.com"
 
         # Get CN for filenames
         cert_cn = cert.get("subject_cn") or cert.get("cn", cn)
