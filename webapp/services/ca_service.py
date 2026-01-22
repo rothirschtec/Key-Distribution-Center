@@ -7,6 +7,7 @@ Supports multi-tenant directory structure:
 from __future__ import annotations
 
 import sys
+import shutil
 from pathlib import Path
 from typing import Any
 
@@ -288,3 +289,126 @@ class CAService:
         """
         all_cas = cls.list_cas()
         return [ca for ca in all_cas if ca.get("domain") == domain]
+
+    @classmethod
+    def delete_ca(cls, domain: str, name: str, delete_certificates: bool = True) -> OperationResult:
+        """Delete a Certificate Authority and optionally all its certificates.
+
+        In multi-tenant mode, this deletes the entire CA directory:
+            CAs/<domain>/<ca-name>/
+
+        Args:
+            domain: CA domain.
+            name: CA name.
+            delete_certificates: If True, delete all certificates issued by this CA.
+
+        Returns:
+            OperationResult with success status and details.
+        """
+        # Check if CA exists
+        ca_info = cls.get_ca(domain, name)
+        if not ca_info:
+            return OperationResult(
+                success=False,
+                message=f"CA not found: {domain}/{name}"
+            )
+
+        deleted_items = []
+        errors = []
+
+        if cls.is_multi_tenant():
+            # Multi-tenant mode: delete entire CA directory
+            cas_root = cls.get_cas_root_dir()
+            ca_dir = cas_root / domain / name
+
+            if ca_dir.exists():
+                try:
+                    # Count items before deletion for reporting
+                    cert_count = len(list((ca_dir / "STORE" / "certs").glob("*.pem"))) if (ca_dir / "STORE" / "certs").exists() else 0
+
+                    # Delete the entire CA directory
+                    shutil.rmtree(ca_dir)
+                    deleted_items.append(str(ca_dir))
+
+                    # Check if domain directory is now empty, if so delete it too
+                    domain_dir = cas_root / domain
+                    if domain_dir.exists() and not any(domain_dir.iterdir()):
+                        domain_dir.rmdir()
+                        deleted_items.append(str(domain_dir))
+
+                    return OperationResult(
+                        success=True,
+                        message=f"CA deleted: {domain}/{name} ({cert_count} certificates removed)",
+                        data={
+                            "name": name,
+                            "domain": domain,
+                            "deleted_items": deleted_items,
+                            "certificates_deleted": cert_count,
+                        }
+                    )
+                except Exception as exc:
+                    return OperationResult(
+                        success=False,
+                        message=f"Failed to delete CA directory: {exc}",
+                        error=str(exc)
+                    )
+            else:
+                return OperationResult(
+                    success=False,
+                    message=f"CA directory not found: {ca_dir}"
+                )
+        else:
+            # Single-tenant mode: delete CA files only
+            store_dir = cls.get_store_dir()
+            ca = CA(name, domain, store_dir)
+
+            if delete_certificates:
+                # Delete all certificates signed by this CA
+                certs_dir = store_dir / "certs"
+                if certs_dir.exists():
+                    for cert_file in certs_dir.glob(f"*-{name}.pem"):
+                        try:
+                            # Also delete key and p12
+                            key_file = store_dir / "private" / cert_file.name
+                            p12_file = store_dir / "p12" / f"{cert_file.stem}.p12"
+                            pass_file = store_dir / "p12" / f"{cert_file.stem}.pass"
+
+                            cert_file.unlink()
+                            deleted_items.append(str(cert_file))
+
+                            if key_file.exists():
+                                key_file.unlink()
+                                deleted_items.append(str(key_file))
+                            if p12_file.exists():
+                                p12_file.unlink()
+                                deleted_items.append(str(p12_file))
+                            if pass_file.exists():
+                                pass_file.unlink()
+                                deleted_items.append(str(pass_file))
+                        except Exception as exc:
+                            errors.append(f"Failed to delete cert {cert_file.name}: {exc}")
+
+            # Delete the CA itself
+            result = ca.delete()
+            if result.success:
+                deleted_items.extend(result.data.get("deleted_files", []))
+            else:
+                errors.append(result.message)
+
+            if errors:
+                return OperationResult(
+                    success=False,
+                    message=f"Errors during deletion: {'; '.join(errors)}",
+                    data={"deleted_items": deleted_items},
+                    error="; ".join(errors)
+                )
+
+            return OperationResult(
+                success=True,
+                message=f"CA deleted: {domain}/{name}",
+                data={
+                    "name": name,
+                    "domain": domain,
+                    "deleted_items": deleted_items,
+                }
+            )

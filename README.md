@@ -1,13 +1,3 @@
----
-title: "Key Distribution Center"
-domains: [hithlum]
-functions: [security, certificate-management]
-technologies: [strongswan, ipsec, python, docker, flask, ssh, openssl]
-status: active
-maintainer: r9
-last_updated: 2026-01-22
----
-
 # Key Distribution Center
 
 _Using strongswan ipsec pki, Flask web application, and SSH for certificate management_

@@ -453,12 +453,18 @@ class CertificateService:
         cert_cn = cert.get("subject_cn") or cert.get("cn", cn)
         safe_cn = cert_cn.replace("@", "-").replace(".", "-")
 
+        # Get company and country from certificate info
+        company = cert.get("subject_o", "Unknown Company")
+        country = cert.get("subject_c", "AT")
+
         # Template context
         context = {
             "cn": cert_cn,
             "p12_filename": Path(p12_path).name,
             "p12_password": p12_password or "unknown",
             "vpn_gateway": vpn_gateway,
+            "company": company,
+            "country": country,
         }
 
         # Get template directory

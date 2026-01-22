@@ -49,6 +49,21 @@
     </dl>
 </div>
 
+<div class="section">
+    <h2>Actions</h2>
+    <div class="action-buttons">
+        <a href="{{ url_for('web.create_certificate') }}?ca_domain={{ ca.domain }}&ca_name={{ ca.name }}" class="btn btn-primary">
+            Create Certificate
+        </a>
+        <form method="POST" action="{{ url_for('web.delete_ca', domain=ca.domain, name=ca.name) }}" class="inline-form">
+            <button type="submit" class="btn btn-danger"
+                    onclick="return confirm('DELETE this CA and ALL its certificates?\n\nCA: {{ ca.domain }}/{{ ca.name }}\nCertificates: {{ certificates|length }}\n\nThis action CANNOT be undone!');">
+                Delete CA
+            </button>
+        </form>
+    </div>
+</div>
+
 {% if certificates %}
 <div class="section">
     <h2>Certificates Signed by this CA</h2>

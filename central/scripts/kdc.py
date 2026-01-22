@@ -256,6 +256,58 @@ class CA:
                 error=str(exc)
             )
 
+    def delete(self) -> OperationResult:
+        """Delete the CA certificate and private key.
+
+        Note: This only deletes the CA files, not the entire directory structure.
+        For multi-tenant mode, use CAService.delete_ca() to remove the entire CA directory.
+
+        Returns:
+            OperationResult with success status and list of deleted files.
+        """
+        if not self.exists():
+            return OperationResult(
+                success=False,
+                message=f"CA does not exist: {self.name}"
+            )
+
+        deleted_files = []
+        errors = []
+
+        # Delete CA certificate
+        if self.cert_path.exists():
+            try:
+                self.cert_path.unlink()
+                deleted_files.append(str(self.cert_path))
+            except Exception as exc:
+                errors.append(f"Failed to delete cert: {exc}")
+
+        # Delete CA private key
+        if self.key_path.exists():
+            try:
+                self.key_path.unlink()
+                deleted_files.append(str(self.key_path))
+            except Exception as exc:
+                errors.append(f"Failed to delete key: {exc}")
+
+        if errors:
+            return OperationResult(
+                success=False,
+                message=f"Errors deleting CA: {'; '.join(errors)}",
+                data={"deleted_files": deleted_files},
+                error="; ".join(errors)
+            )
+
+        return OperationResult(
+            success=True,
+            message=f"CA deleted: {self.name}",
+            data={
+                "name": self.name,
+                "domain": self.domain,
+                "deleted_files": deleted_files,
+            }
+        )
+
     def info(self) -> OperationResult:
         """Get CA certificate information.
 

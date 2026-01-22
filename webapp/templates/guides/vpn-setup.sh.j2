@@ -88,7 +88,10 @@ openssl pkcs12 -in "$P12_FILE" -clcerts -nokeys \
     -out /etc/swanctl/x509/${CONN_NAME}.pem \
     -password pass:"$P12_PASSWORD"
 
-# Extract private key
+# Extract private key (unencrypted for automated use)
+openssl pkcs12 -in "$P12_FILE" -nocerts -nodes \
+    -out /etc/swanctl/private/${CONN_NAME}.key \
+    -password pass:"$P12_PASSWORD" -legacy 2>/dev/null || \
 openssl pkcs12 -in "$P12_FILE" -nocerts -nodes \
     -out /etc/swanctl/private/${CONN_NAME}.key \
     -password pass:"$P12_PASSWORD"
@@ -109,6 +112,7 @@ connections {
         local {
             auth = pubkey
             certs = {{ cn | replace('.', '-') | replace('@', '-') }}.pem
+            id = "C={{ country }}, O={{ company }}, CN={{ cn }}"
         }
 
         remote {

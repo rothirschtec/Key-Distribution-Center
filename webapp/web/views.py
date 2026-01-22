@@ -67,6 +67,20 @@ def create_ca():
     return render_template("ca/create.html")
 
 
+@web_bp.route("/cas/<domain>/<name>/delete", methods=["POST"])
+def delete_ca(domain: str, name: str):
+    """Delete a CA and all its certificates."""
+    result = CAService.delete_ca(domain, name, delete_certificates=True)
+
+    if result.success:
+        cert_count = result.data.get("certificates_deleted", 0)
+        flash(f"CA deleted: {domain}/{name} ({cert_count} certificates removed)", "success")
+    else:
+        flash(f"Failed to delete CA: {result.message}", "error")
+
+    return redirect(url_for("web.list_cas"))
+
+
 # Certificate Views
 @web_bp.route("/certificates")
 def list_certificates():

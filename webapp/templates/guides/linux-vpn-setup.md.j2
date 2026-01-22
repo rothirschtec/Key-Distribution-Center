@@ -5,6 +5,7 @@
 - **Common Name (CN):** {{ cn }}
 - **P12 File:** {{ p12_filename }}
 - **P12 Password:** {{ p12_password }}
+- **VPN Gateway:** {{ vpn_gateway }}
 
 ## Option 1: GNOME Network Manager (GUI)
 
@@ -13,26 +14,85 @@
 Install required packages:
 
 ```bash
-sudo apt install network-manager-strongswan libcharon-extra-plugins
+sudo apt install network-manager-strongswan libcharon-extra-plugins libstrongswan-extra-plugins
 ```
 
-### Import Certificate
+### Step 1: Extract Certificates from P12
+
+GNOME Network Manager needs separate certificate and key files. Run these commands:
+
+```bash
+# Create a directory for the certificates
+mkdir -p ~/.config/vpn-certs
+
+# Extract the CA certificate
+openssl pkcs12 -in {{ p12_filename }} -cacerts -nokeys \
+    -out ~/.config/vpn-certs/ca.pem \
+    -password pass:'{{ p12_password }}' -legacy 2>/dev/null || \
+openssl pkcs12 -in {{ p12_filename }} -cacerts -nokeys \
+    -out ~/.config/vpn-certs/ca.pem \
+    -password pass:'{{ p12_password }}'
+
+# Extract your client certificate
+openssl pkcs12 -in {{ p12_filename }} -clcerts -nokeys \
+    -out ~/.config/vpn-certs/{{ cn }}.crt \
+    -password pass:'{{ p12_password }}' -legacy 2>/dev/null || \
+openssl pkcs12 -in {{ p12_filename }} -clcerts -nokeys \
+    -out ~/.config/vpn-certs/{{ cn }}.crt \
+    -password pass:'{{ p12_password }}'
+
+# Extract your private key (unencrypted with -nodes to avoid password prompts)
+openssl pkcs12 -in {{ p12_filename }} -nocerts -nodes \
+    -out ~/.config/vpn-certs/{{ cn }}.key \
+    -password pass:'{{ p12_password }}' -legacy 2>/dev/null || \
+openssl pkcs12 -in {{ p12_filename }} -nocerts -nodes \
+    -out ~/.config/vpn-certs/{{ cn }}.key \
+    -password pass:'{{ p12_password }}'
+
+# IMPORTANT: Secure the private key since it's unencrypted
+chmod 600 ~/.config/vpn-certs/{{ cn }}.key
+```
+
+### Step 2: Configure VPN in GNOME Settings
 
 1. Open **Settings** → **Network**
 2. Click **+** next to VPN
 3. Select **IPsec/IKEv2 (strongswan)**
-4. Configure:
-   - **Name:** {{ cn }} VPN
-   - **Gateway:** {{ vpn_gateway }}
-   - **Authentication:** Certificate
-   - **Certificate:** Import `{{ p12_filename }}`
-   - **Password:** Use the P12 password above
-5. Under **Options**, ensure:
-   - Request inner IP address: ✓
-   - Enforce UDP encapsulation: ✓
-6. Click **Add**
+4. Configure the **Identity** tab:
 
-### Connect
+**Server Section:**
+
+| Setting | Value |
+|---------|-------|
+| **Name** | {{ cn }} VPN |
+| **Address** | {{ vpn_gateway }} |
+| **Certificate** | Select `~/.config/vpn-certs/ca.pem` |
+| **Identity** | {{ vpn_gateway }} |
+
+**Client Section:**
+
+| Setting | Value |
+|---------|-------|
+| **Authentication** | **Certificate** (NOT EAP!) |
+| **Certificate** | **Certificate/private key** |
+| **Certificate file** | Select `~/.config/vpn-certs/{{ cn }}.crt` |
+| **Private key** | Select `~/.config/vpn-certs/{{ cn }}.key` |
+| **Identity** | `C={{ country }}, O={{ company }}, CN={{ cn }}` |
+
+> **Important:** The Identity must be the **full DN** (Distinguished Name) exactly as shown above.
+> Using just the CN (e.g., `{{ cn }}`) will NOT work due to a GNOME/charon-nm quirk
+> that converts `@` to `.` in simple identity strings.
+
+**Options Section:**
+
+| Setting | Value |
+|---------|-------|
+| **Request an inner IP address** | ✓ Checked |
+| **Enforce UDP encapsulation** | ✓ Checked |
+
+5. Click **Add**
+
+### Step 3: Connect
 
 Click the VPN toggle in Settings or use the network indicator in the top bar.
 
@@ -82,6 +142,7 @@ connections {
         local {
             auth = pubkey
             certs = {{ cn }}.pem
+            id = "C={{ country }}, O={{ company }}, CN={{ cn }}"
         }
 
         remote {
