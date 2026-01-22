@@ -51,14 +51,28 @@ key_distribution_center/
 
 ```bash
 # Build the Docker image
-docker build -t kdc .
+docker compose build
 
 # Run with Docker Compose
-docker-compose up -d
+docker compose up -d
 
 # Access the web interface
 open http://localhost:5000
 ```
+
+### Building on ARM systems with limited kernel support
+
+On systems like ClearFog Base (ARM mvebu) where the kernel lacks overlay, br_netfilter, and iptable_nat modules, Docker must be configured with `bridge: none`. This prevents network access during builds. Use the included build script:
+
+```bash
+# Use the build script (temporarily enables networking)
+./build.sh
+
+# Then start the container
+docker compose up -d
+```
+
+The build script automatically backs up your Docker daemon configuration, enables networking for the build, then restores the original configuration.
 
 ### Development mode
 
@@ -206,7 +220,9 @@ Environment variables for the web application:
 |----------|---------|-------------|
 | `SECRET_KEY` | dev-key | Flask secret key (change in production) |
 | `FLASK_ENV` | production | Flask environment |
-| `STORE_DIR` | /app/central/scripts/STORE | Certificate storage directory |
+| `MULTI_TENANT` | true | Enable multi-tenant mode |
+| `CAS_ROOT_DIR` | /app/CAs | Root directory for multi-tenant CAs |
+| `STORE_DIR` | /app/central/scripts/STORE | Certificate storage (single-tenant) |
 | `SCRIPTS_DIR` | /app/central/scripts | Scripts directory |
 | `DEFAULT_COUNTRY` | AT | Default country code |
 | `DEFAULT_CA_KEY_LENGTH` | 4096 | Default CA key size |
@@ -214,7 +230,56 @@ Environment variables for the web application:
 | `DEFAULT_CERT_KEY_LENGTH` | 3072 | Default certificate key size |
 | `DEFAULT_CERT_LIFETIME` | 181 | Default certificate validity (days) |
 
+## Multi-Tenant Mode
+
+The web application supports managing certificates for multiple customers (domains). In multi-tenant mode, the directory structure is:
+
+```text
+CAs/
+├── customer1.com/
+│   ├── MainCA/
+│   │   └── STORE/
+│   │       ├── cacerts/
+│   │       ├── certs/
+│   │       ├── private/
+│   │       ├── crls/
+│   │       └── p12/
+│   └── SubCA/
+│       └── STORE/
+├── customer2.org/
+│   └── PrimaryCA/
+│       └── STORE/
+└── ...
+```
+
+Each domain (customer) can have multiple CAs, and each CA has its own STORE directory with the standard certificate storage structure.
+
+### API with Multi-Tenant
+
+When using the API in multi-tenant mode, specify the domain and CA name:
+
+```bash
+# List all CAs across all domains
+curl http://localhost:5000/api/v1/cas
+
+# Get certificates for a specific domain/CA
+curl http://localhost:5000/api/v1/certificates?domain=example.com&ca_name=MainCA
+
+# Create a certificate for a specific CA
+curl -X POST http://localhost:5000/api/v1/certificates \
+  -H "Content-Type: application/json" \
+  -d '{
+    "cn": "user@example.com",
+    "ca_name": "MainCA",
+    "ca_domain": "example.com",
+    "company": "Example Ltd",
+    "cert_type": "user"
+  }'
+```
+
 ## Certificate Storage
+
+### Single-Tenant Mode
 
 Certificates are stored in the following structure:
 
@@ -226,6 +291,10 @@ STORE/
 ├── crls/          # Certificate Revocation Lists (.pem)
 └── p12/           # PKCS#12 bundles for users (.p12, .pass)
 ```
+
+### Multi-Tenant Mode
+
+In multi-tenant mode, each domain/CA combination has its own STORE directory. See the [Multi-Tenant Mode](#multi-tenant-mode) section for the directory structure.
 
 ## Dependencies
 

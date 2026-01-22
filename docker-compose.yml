@@ -1,7 +1,9 @@
 ---
 services:
   kdc-webapp:
-    build: .
+    build:
+      context: .
+      network: host
     container_name: kdc-webapp
     network_mode: host
     volumes:
@@ -25,7 +27,9 @@ services:
 
   # Development service with hot reload
   kdc-dev:
-    build: .
+    build:
+      context: .
+      network: host
     container_name: kdc-dev
     network_mode: host
     volumes:
