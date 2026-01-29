@@ -19,41 +19,61 @@ sudo apt install network-manager-strongswan libcharon-extra-plugins libstrongswa
 
 ### Step 1: Extract Certificates from P12
 
-GNOME Network Manager needs separate certificate and key files. Run these commands:
+GNOME Network Manager needs separate certificate and key files.
+
+**Set your password first (provided by your administrator), then copy-paste the entire block:**
 
 ```bash
-# Create a directory for the certificates
+# === SET YOUR PASSWORD HERE ===
+P12_PASSWORD="YOUR_PASSWORD_HERE"
+
+# Create directory and extract certificates
 mkdir -p ~/.config/vpn-certs
 
-# Extract the CA certificate (replace YOUR_P12_PASSWORD with the password from your administrator)
+# Extract CA certificate
 openssl pkcs12 -in {{ p12_filename }} -cacerts -nokeys \
     -out ~/.config/vpn-certs/ca.pem \
-    -password pass:'YOUR_P12_PASSWORD' -legacy 2>/dev/null || \
+    -password pass:"$P12_PASSWORD" -legacy 2>/dev/null || \
 openssl pkcs12 -in {{ p12_filename }} -cacerts -nokeys \
     -out ~/.config/vpn-certs/ca.pem \
-    -password pass:'YOUR_P12_PASSWORD'
+    -password pass:"$P12_PASSWORD"
 
-# Extract your client certificate
+# Extract client certificate
 openssl pkcs12 -in {{ p12_filename }} -clcerts -nokeys \
     -out ~/.config/vpn-certs/{{ cn }}.crt \
-    -password pass:'YOUR_P12_PASSWORD' -legacy 2>/dev/null || \
+    -password pass:"$P12_PASSWORD" -legacy 2>/dev/null || \
 openssl pkcs12 -in {{ p12_filename }} -clcerts -nokeys \
     -out ~/.config/vpn-certs/{{ cn }}.crt \
-    -password pass:'YOUR_P12_PASSWORD'
+    -password pass:"$P12_PASSWORD"
 
-# Extract your private key (unencrypted with -nodes to avoid password prompts)
+# Extract private key (unencrypted to avoid password prompts)
 openssl pkcs12 -in {{ p12_filename }} -nocerts -nodes \
     -out ~/.config/vpn-certs/{{ cn }}.key \
-    -password pass:'YOUR_P12_PASSWORD' -legacy 2>/dev/null || \
+    -password pass:"$P12_PASSWORD" -legacy 2>/dev/null || \
 openssl pkcs12 -in {{ p12_filename }} -nocerts -nodes \
     -out ~/.config/vpn-certs/{{ cn }}.key \
-    -password pass:'YOUR_P12_PASSWORD'
+    -password pass:"$P12_PASSWORD"
 
-# IMPORTANT: Secure the private key since it's unencrypted
+# Secure the private key
 chmod 600 ~/.config/vpn-certs/{{ cn }}.key
 ```
 
-### Step 2: Configure VPN in GNOME Settings
+### Step 2: Get Your Exact Identity String
+
+**This is the most important step!** Run this command to get your exact identity:
+
+```bash
+openssl x509 -in ~/.config/vpn-certs/{{ cn }}.crt -noout -subject -nameopt RFC2253 | sed 's/subject=//'
+```
+
+This will output something like:
+```
+CN={{ cn }},O={{ company }},C={{ country }}
+```
+
+**Copy this exact output** - you will need it for the "Identity" field below.
+
+### Step 3: Configure VPN in GNOME Settings
 
 1. Open **Settings** → **Network**
 2. Click **+** next to VPN
@@ -67,9 +87,9 @@ chmod 600 ~/.config/vpn-certs/{{ cn }}.key
 | **Name** | {{ cn }} VPN |
 | **Address** | {{ vpn_gateway }} |
 | **Certificate** | Select `~/.config/vpn-certs/ca.pem` |
-| **Identity** | {{ vpn_gateway }} |
+| **Identity** | *Leave empty* |
 
-**Client Section:**
+**Client Section (YOUR identity):**
 
 | Setting | Value |
 |---------|-------|
@@ -77,11 +97,11 @@ chmod 600 ~/.config/vpn-certs/{{ cn }}.key
 | **Certificate** | **Certificate/private key** |
 | **Certificate file** | Select `~/.config/vpn-certs/{{ cn }}.crt` |
 | **Private key** | Select `~/.config/vpn-certs/{{ cn }}.key` |
-| **Identity** | `C={{ country }}, O={{ company }}, CN={{ cn }}` |
+| **Identity** | ⚠️ **Paste the output from Step 2** ← *NOT the server name!* |
 
-> **Important:** The Identity must be the **full DN** (Distinguished Name) exactly as shown above.
-> Using just the CN (e.g., `{{ cn }}`) will NOT work due to a GNOME/charon-nm quirk
-> that converts `@` to `.` in simple identity strings.
+> **⚠️ CRITICAL:**
+> - **Server Identity** = Leave empty
+> - **Client Identity** = Your certificate DN from Step 2 (e.g., `CN={{ cn }},O={{ company }},C={{ country }}`)
 
 **Options Section:**
 
@@ -92,7 +112,7 @@ chmod 600 ~/.config/vpn-certs/{{ cn }}.key
 
 5. Click **Add**
 
-### Step 3: Connect
+### Step 4: Connect
 
 Click the VPN toggle in Settings or use the network indicator in the top bar.
 
@@ -117,17 +137,20 @@ sudo apt install strongswan libcharon-extra-plugins
 
 ### Manual Configuration
 
-1. **Extract P12 certificate:**
+1. **Extract P12 certificate (set your password first, then copy-paste the block):**
 
 ```bash
-# Extract CA certificate (replace YOUR_P12_PASSWORD with password from your administrator)
-openssl pkcs12 -in {{ p12_filename }} -cacerts -nokeys -out /etc/swanctl/x509ca/ca.pem -password pass:YOUR_P12_PASSWORD
+# === SET YOUR PASSWORD HERE ===
+P12_PASSWORD="YOUR_PASSWORD_HERE"
+
+# Extract CA certificate
+openssl pkcs12 -in {{ p12_filename }} -cacerts -nokeys -out /etc/swanctl/x509ca/ca.pem -password pass:"$P12_PASSWORD"
 
 # Extract client certificate
-openssl pkcs12 -in {{ p12_filename }} -clcerts -nokeys -out /etc/swanctl/x509/{{ cn }}.pem -password pass:YOUR_P12_PASSWORD
+openssl pkcs12 -in {{ p12_filename }} -clcerts -nokeys -out /etc/swanctl/x509/{{ cn }}.pem -password pass:"$P12_PASSWORD"
 
 # Extract private key
-openssl pkcs12 -in {{ p12_filename }} -nocerts -nodes -out /etc/swanctl/private/{{ cn }}.key -password pass:YOUR_P12_PASSWORD
+openssl pkcs12 -in {{ p12_filename }} -nocerts -nodes -out /etc/swanctl/private/{{ cn }}.key -password pass:"$P12_PASSWORD"
 chmod 600 /etc/swanctl/private/{{ cn }}.key
 ```
 
