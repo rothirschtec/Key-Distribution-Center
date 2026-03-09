@@ -1,0 +1,111 @@
+{% extends "base.html" %}
+
+{% block title %}Create Certificate{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>Create Certificate</h1>
+    <a href="{{ url_for('web.list_certificates') }}" class="btn btn-secondary">Cancel</a>
+</div>
+
+{% if not cas %}
+<div class="alert alert-warning">
+    <p>No Certificate Authorities found. You need to create a CA first.</p>
+    <a href="{{ url_for('web.create_ca') }}" class="btn btn-primary">Create CA</a>
+</div>
+{% else %}
+<div class="form-card">
+    <form method="POST" action="{{ url_for('web.create_certificate') }}">
+        <div class="form-group">
+            <label for="cn">Common Name *</label>
+            <input type="text" id="cn" name="cn" required
+                   placeholder="e.g., user@example.com or host.example.com">
+            <small>Common Name for the certificate (user email or hostname)</small>
+        </div>
+
+        <div class="form-group">
+            <label for="ca_select">Certificate Authority *</label>
+            <select id="ca_select" name="ca_select" required onchange="updateCAFields()">
+                <option value="">Select a CA...</option>
+                {% for ca in cas %}
+                <option value="{{ ca.domain }}|{{ ca.name }}|{{ ca.subject_o or '' }}">
+                    {{ ca.domain }}_{{ ca.name }} {% if ca.subject_o %}({{ ca.subject_o }}){% endif %}
+                </option>
+                {% endfor %}
+            </select>
+            <input type="hidden" id="ca_domain" name="ca_domain">
+            <input type="hidden" id="ca_name" name="ca_name">
+            <small>Select the CA that will sign this certificate</small>
+        </div>
+
+        <div class="form-group">
+            <label for="company">Company *</label>
+            <input type="text" id="company" name="company" required
+                   placeholder="e.g., Example Ltd">
+            <small>Company name for the certificate DN</small>
+        </div>
+
+        <div class="form-group">
+            <label for="cert_type">Certificate Type *</label>
+            <select id="cert_type" name="cert_type" required>
+                <option value="user" selected>User - Personal certificate</option>
+                <option value="vpn">VPN Gateway - Server with serverAuth flag</option>
+                <option value="host">Host - Machine certificate</option>
+            </select>
+            <small>Type of certificate to create</small>
+        </div>
+
+        <div class="form-row">
+            <div class="form-group">
+                <label for="country">Country</label>
+                <input type="text" id="country" name="country"
+                       value="AT" maxlength="2" pattern="[A-Z]{2}"
+                       title="Two uppercase letters">
+                <small>Two-letter country code</small>
+            </div>
+
+            <div class="form-group">
+                <label for="key_length">Key Length</label>
+                <select id="key_length" name="key_length">
+                    <option value="2048">2048 bits</option>
+                    <option value="3072" selected>3072 bits (recommended)</option>
+                    <option value="4096">4096 bits</option>
+                </select>
+                <small>RSA key size in bits</small>
+            </div>
+
+            <div class="form-group">
+                <label for="lifetime">Lifetime (days)</label>
+                <input type="number" id="lifetime" name="lifetime"
+                       value="181" min="1" max="3650">
+                <small>Certificate validity period</small>
+            </div>
+        </div>
+
+        <div class="form-actions">
+            <button type="submit" class="btn btn-primary">Create Certificate</button>
+            <a href="{{ url_for('web.list_certificates') }}" class="btn btn-secondary">Cancel</a>
+        </div>
+    </form>
+</div>
+
+<script>
+function updateCAFields() {
+    const select = document.getElementById('ca_select');
+    const value = select.value;
+    if (value) {
+        const parts = value.split('|');
+        document.getElementById('ca_domain').value = parts[0];
+        document.getElementById('ca_name').value = parts[1];
+        // Pre-fill company if available
+        if (parts[2] && !document.getElementById('company').value) {
+            document.getElementById('company').value = parts[2];
+        }
+    } else {
+        document.getElementById('ca_domain').value = '';
+        document.getElementById('ca_name').value = '';
+    }
+}
+</script>
+{% endif %}
+{% endblock %}

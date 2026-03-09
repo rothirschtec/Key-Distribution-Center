@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+
+{% block title %}Settings{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>CA Settings</h1>
+</div>
+
+<p style="margin-bottom: 20px; color: #666;">
+    Configure VPN gateway, SSH transfer settings, and other options per CA. These settings are used when generating VPN setup bundles and transferring certificates.
+</p>
+
+{% if ca_settings %}
+<table class="table">
+    <thead>
+        <tr>
+            <th>Domain</th>
+            <th>CA Name</th>
+            <th>VPN Gateway</th>
+            <th>SSH Host</th>
+            <th>SSH Key</th>
+            <th>Actions</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for cs in ca_settings %}
+        <tr>
+            <td><strong>{{ cs.domain }}</strong></td>
+            <td>{{ cs.ca_name }}</td>
+            <td>
+                {% if cs.vpn_gateway %}
+                    <code>{{ cs.vpn_gateway }}</code>
+                {% else %}
+                    <span style="color: #999;">Not configured</span>
+                {% endif %}
+            </td>
+            <td>
+                {% if cs.ssh_host %}
+                    <code>{{ cs.ssh_user }}@{{ cs.ssh_host }}:{{ cs.ssh_port }}</code>
+                {% else %}
+                    <span style="color: #999;">Not configured</span>
+                {% endif %}
+            </td>
+            <td>
+                {% if cs.has_ssh_key %}
+                    <span class="badge badge-success">Uploaded</span>
+                {% else %}
+                    <span class="badge badge-secondary">None</span>
+                {% endif %}
+            </td>
+            <td>
+                <a href="{{ url_for('web.ca_settings', domain=cs.domain, ca_name=cs.ca_name) }}" class="btn btn-small btn-primary">Edit</a>
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% else %}
+<div class="empty-state">
+    <p>No CAs found. Create a CA first to configure settings.</p>
+    <a href="{{ url_for('web.create_ca') }}" class="btn btn-primary">Create CA</a>
+</div>
+{% endif %}
+
+<style>
+.badge-secondary {
+    background: #6c757d;
+}
+</style>
+{% endblock %}

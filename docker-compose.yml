@@ -1,0 +1,50 @@
+---
+services:
+  kdc-webapp:
+    build:
+      context: .
+      network: host
+    container_name: kdc-webapp
+    network_mode: host
+    volumes:
+      # Multi-tenant: Mount CAs directory
+      - ./CAs:/app/CAs
+      # Mount scripts for shell script operations
+      - ./central/scripts:/app/central/scripts
+      # Mount webapp for live code updates (remove in production)
+      - ./webapp:/app/webapp:ro
+      # Mount SSH keys for certificate transfer (read-only)
+      - ~/.ssh:/root/.ssh:ro
+    environment:
+      - SECRET_KEY=${SECRET_KEY:-change-me-in-production}
+      - FLASK_ENV=${FLASK_ENV:-production}
+      - MULTI_TENANT=true
+      - CAS_ROOT_DIR=/app/CAs
+      - DEFAULT_COUNTRY=${DEFAULT_COUNTRY:-AT}
+      - DEFAULT_CA_KEY_LENGTH=${DEFAULT_CA_KEY_LENGTH:-4096}
+      - DEFAULT_CA_LIFETIME=${DEFAULT_CA_LIFETIME:-3650}
+      - DEFAULT_CERT_KEY_LENGTH=${DEFAULT_CERT_KEY_LENGTH:-3072}
+      - DEFAULT_CERT_LIFETIME=${DEFAULT_CERT_LIFETIME:-365}
+    restart: unless-stopped
+
+  # Development service with hot reload
+  kdc-dev:
+    build:
+      context: .
+      network: host
+    container_name: kdc-dev
+    network_mode: host
+    volumes:
+      - ./CAs:/app/CAs
+      - ./central/scripts:/app/central/scripts
+      - ./webapp:/app/webapp:ro
+      - ./wsgi.py:/app/wsgi.py:ro
+      - ~/.ssh:/root/.ssh:ro
+    environment:
+      - SECRET_KEY=dev-secret-key
+      - FLASK_ENV=development
+      - MULTI_TENANT=true
+      - CAS_ROOT_DIR=/app/CAs
+    command: python wsgi.py
+    profiles:
+      - dev
